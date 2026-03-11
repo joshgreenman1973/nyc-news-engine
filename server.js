@@ -85,6 +85,9 @@ const OUTLETS = [
   { name: 'ABC7 NY', slug: 'abc7', tier: 3, url: 'https://abc7ny.com/feed/', site: 'https://abc7ny.com', color: '#2b6cb0', tagline: 'Local TV news' },
   { name: 'CBS News NY', slug: 'cbsny', tier: 3, url: null, site: 'https://www.cbsnews.com/newyork/', color: '#1a365d', tagline: 'Local TV news' },
   { name: 'Brooklyn Eagle', slug: 'brooklyn-eagle', tier: 3, url: 'https://brooklyneagle.com/feed/', site: 'https://brooklyneagle.com', color: '#4338ca', tagline: 'Brooklyn borough news' },
+  // Tier 2 — State & national with NYC filter
+  { name: 'Albany Times Union', slug: 'times-union', tier: 2, url: 'https://timesunion.com/news/feed/', site: 'https://www.timesunion.com', color: '#1e3a5f', tagline: 'Albany & state politics' },
+  { name: 'Wall Street Journal', slug: 'wsj', tier: 2, url: 'https://feeds.a.dj.com/rss/RSSWorldNews.xml', site: 'https://www.wsj.com', color: '#0a0a0a', tagline: 'Business & policy' },
 ];
 
 // ─── Topic classification ─────────────────────────────────────────────
@@ -314,7 +317,7 @@ async function fetchFeed(outlet) {
     });
 
     // For national outlets, filter to NYC-relevant stories only
-    const nycOnlyFilter = ['propublica', 'bolts', 'the-trace', 'the-markup', 'nymag', 'new-yorker'];
+    const nycOnlyFilter = ['propublica', 'bolts', 'the-trace', 'the-markup', 'nymag', 'new-yorker', 'times-union', 'wsj'];
     let filtered = items;
     if (nycOnlyFilter.includes(outlet.slug)) {
       const NYC_SIGNALS = [
