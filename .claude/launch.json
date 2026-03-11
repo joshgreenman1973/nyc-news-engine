@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "nyc-news-engine",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.js"],
+      "port": 3456,
+      "cwd": "/Users/joshgreenman/Experiments/nyc-news-engine"
+    }
+  ]
+}

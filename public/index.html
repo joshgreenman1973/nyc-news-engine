@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NYC News Engine</title>
+  <style>
+    :root {
+      --bg: #f5f4ef;
+      --text: #1a1a1a;
+      --muted: #7a7a72;
+      --border: #d8d7cf;
+      --card-bg: #ffffff;
+      --accent: #c53030;
+      --accent-dark: #9b2c2c;
+      --accent-light: #fef2f2;
+      --link: #1a1a1a;
+      --link-hover: #c53030;
+      --tag-bg: #eceae4;
+      --tag-text: #555550;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+      --serif: 'Georgia', 'Times New Roman', serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--serif);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── Header ─── */
+    header {
+      background: linear-gradient(180deg, #fff 0%, #faf9f5 100%);
+      border-bottom: 3px solid var(--text);
+      padding: 1.8rem 0 1.1rem;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+
+    .header-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    h1 {
+      font-size: 2.8rem;
+      font-weight: 900;
+      letter-spacing: -0.05em;
+      line-height: 1;
+      font-family: var(--serif);
+    }
+
+    h1 .accent { color: var(--accent); }
+
+    .header-right {
+      text-align: right;
+      font-family: var(--sans);
+      font-size: 0.78rem;
+      color: var(--muted);
+      padding-bottom: 0.2rem;
+    }
+
+    .header-date {
+      font-weight: 700;
+      color: var(--text);
+      font-size: 0.88rem;
+      letter-spacing: 0.02em;
+    }
+
+    .refresh-row {
+      display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end; margin-top: 0.2rem;
+    }
+
+    .refresh-btn {
+      background: none; border: 1px solid var(--border); padding: 0.15rem 0.6rem;
+      font-size: 0.72rem; font-family: var(--sans); cursor: pointer;
+      border-radius: 3px; color: var(--muted); transition: all 0.2s;
+    }
+    .refresh-btn:hover { border-color: var(--text); color: var(--text); }
+    .refresh-btn.loading { opacity: 0.5; cursor: wait; }
+
+    .tagline {
+      text-align: center;
+      font-style: italic;
+      font-size: 0.92rem;
+      color: #888;
+      padding: 0.7rem 0 0;
+      border-top: 1px solid var(--border);
+      margin-top: 0.8rem;
+      letter-spacing: 0.01em;
+    }
+
+    /* ─── Nav ─── */
+    nav {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .nav-inner {
+      display: flex; align-items: center;
+      max-width: 1100px; margin: 0 auto; padding: 0 1.5rem;
+    }
+
+    .nav-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      padding: 0.6rem 1.1rem; cursor: pointer; font-size: 0.82rem;
+      font-family: var(--sans); font-weight: 500; color: var(--muted);
+      transition: all 0.15s; letter-spacing: 0.01em;
+    }
+    .nav-btn:hover { color: var(--text); background: #faf9f5; }
+    .nav-btn.active { color: var(--accent-dark); border-bottom-color: var(--accent); font-weight: 700; }
+
+    .nav-spacer { flex: 1; }
+
+    .topic-filter-wrap {
+      position: relative; display: inline-block;
+    }
+
+    .topic-toggle {
+      background: none; border: 1px solid var(--border); padding: 0.3rem 0.7rem;
+      font-size: 0.72rem; font-family: var(--sans); cursor: pointer;
+      border-radius: 3px; color: var(--muted); transition: all 0.15s;
+    }
+    .topic-toggle:hover, .topic-toggle.active { border-color: var(--text); color: var(--text); }
+
+    .topic-dropdown {
+      display: none; position: absolute; right: 0; top: 100%; margin-top: 0.3rem;
+      background: #fff; border: 1px solid var(--border); border-radius: 6px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 0.5rem;
+      min-width: 200px; z-index: 200;
+    }
+    .topic-dropdown.open { display: block; }
+
+    .topic-dropdown button {
+      display: block; width: 100%; text-align: left; background: none; border: none;
+      padding: 0.35rem 0.5rem; font-size: 0.78rem; font-family: var(--sans);
+      cursor: pointer; border-radius: 3px; color: var(--text);
+    }
+    .topic-dropdown button:hover { background: var(--tag-bg); }
+    .topic-dropdown button.active-topic { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+
+    .topic-dropdown .count { color: var(--muted); font-size: 0.68rem; float: right; }
+
+    /* ─── Main ─── */
+    main { padding: 1.5rem 0 3rem; }
+
+    .view-panel { display: none; }
+    .view-panel.active { display: block; }
+
+    /* ─── Section headers ─── */
+    .section-label {
+      font-family: var(--sans); font-size: 0.7rem; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent-dark);
+      margin-bottom: 1rem; margin-top: 2.8rem;
+      display: flex; align-items: center; gap: 0.6rem;
+    }
+    .section-label:first-child { margin-top: 0; }
+    .section-label::after {
+      content: ''; flex: 1; height: 2px;
+      background: linear-gradient(90deg, var(--accent) 0%, transparent 100%);
+      opacity: 0.2;
+    }
+
+    /* ─── Lead story (first essential) ─── */
+    .lead-story {
+      background: #fff; border: 1px solid var(--border); border-radius: 6px;
+      padding: 2rem; margin-bottom: 1.5rem;
+      border-top: 3px solid var(--accent);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+
+    .lead-story .story-outlet { margin-bottom: 0.4rem; }
+    .lead-story .story-title { font-size: 1.7rem; line-height: 1.2; font-weight: 700; }
+    .lead-story .story-snippet {
+      font-size: 1.05rem; margin-top: 0.6rem; color: #444; line-height: 1.55;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .lead-story .story-meta { margin-top: 0.5rem; }
+
+    /* ─── Story grid for essential picks ─── */
+    .story-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    .story-card {
+      background: #fff; border: 1px solid var(--border); border-radius: 5px;
+      padding: 1rem 1.1rem;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .story-card:hover {
+      border-color: #bbb;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      transform: translateY(-1px);
+    }
+
+    .story-card .story-title { font-size: 1rem; line-height: 1.25; }
+    .story-card .story-snippet {
+      font-size: 0.82rem; margin-top: 0.35rem; color: #555; line-height: 1.45;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* ─── Topic tags ─── */
+    .topic-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; }
+
+    .topic-tag {
+      font-family: var(--sans); font-size: 0.62rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      background: var(--tag-bg); color: var(--tag-text);
+      padding: 0.15rem 0.5rem; border-radius: 3px;
+      cursor: pointer; transition: all 0.15s;
+      border: 1px solid transparent;
+    }
+    .topic-tag:hover { background: #e5e3dd; color: var(--text); border-color: var(--border); }
+
+    /* ─── Outlet label ─── */
+    .story-outlet {
+      font-family: var(--sans); font-size: 0.68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      display: inline-flex; align-items: center; gap: 0.3rem;
+    }
+
+    .outlet-dot {
+      width: 7px; height: 7px; border-radius: 50%; display: inline-block;
+    }
+
+    /* ─── Story title ─── */
+    .story-title a {
+      color: var(--link); text-decoration: none; transition: color 0.15s;
+    }
+    .story-title a:hover { color: var(--link-hover); }
+    .story-title a:visited { color: #888; }
+
+    /* ─── Snippet ─── */
+    .story-snippet { font-size: 0.9rem; color: #555; line-height: 1.5; }
+
+    /* ─── Meta ─── */
+    .story-meta {
+      font-family: var(--sans); font-size: 0.7rem; color: var(--muted); margin-top: 0.3rem;
+    }
+
+    /* ─── Analysis & Commentary section ─── */
+    .analysis-section {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      border-left: 4px solid var(--accent);
+      padding: 0;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+
+    .analysis-item {
+      padding: 1rem 1.3rem;
+      border-bottom: 1px solid #eeeee6;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .analysis-item:last-child { border-bottom: none; }
+    .analysis-item:hover { background: #fdfcfa; }
+
+    .analysis-left .story-title { font-size: 1.05rem; line-height: 1.3; }
+    .analysis-left .story-snippet {
+      font-size: 0.85rem; margin-top: 0.3rem; color: #555; line-height: 1.45;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+
+    .analysis-tags {
+      padding-top: 0.2rem;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 750px) {
+      .analysis-item { grid-template-columns: 1fr; }
+      .analysis-tags { padding-top: 0; }
+    }
+
+    /* ─── Headlines box ─── */
+    .headlines-box {
+      background: #faf9f5;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0;
+    }
+
+    .headlines-item {
+      padding: 0.6rem 1.2rem;
+      border-bottom: 1px solid #eeeee6;
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+    }
+    .headlines-item:last-child { border-bottom: none; }
+
+    .headlines-item .story-outlet {
+      flex-shrink: 0;
+      min-width: 100px;
+    }
+
+    .headlines-item .story-title {
+      font-size: 0.92rem;
+      line-height: 1.3;
+    }
+
+    /* ─── Notable list (clean, not cards) ─── */
+    .notable-list { list-style: none; }
+
+    .notable-item {
+      padding: 0.8rem 0.4rem; border-bottom: 1px solid #eeeee6;
+      display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; align-items: start;
+      border-radius: 3px; transition: background 0.15s;
+    }
+    .notable-item:last-child { border-bottom: none; }
+    .notable-item:hover { background: #faf9f5; }
+    .notable-item .story-title { font-size: 1rem; }
+    .notable-item .right-col {
+      text-align: right; font-family: var(--sans); font-size: 0.68rem;
+      color: var(--muted); white-space: nowrap; padding-top: 0.15rem;
+    }
+
+    /* ─── Also from around NYC (compact) ─── */
+    .compact-list { list-style: none; column-count: 2; column-gap: 2rem; }
+    .compact-item {
+      padding: 0.4rem 0; break-inside: avoid;
+      border-bottom: 1px solid #f0f0ea; font-size: 0.9rem;
+    }
+    .compact-item:last-child { border-bottom: none; }
+    .compact-item a { color: var(--link); text-decoration: none; }
+    .compact-item a:hover { color: var(--link-hover); }
+    .compact-item a:visited { color: #999; }
+    .compact-item .compact-outlet {
+      font-family: var(--sans); font-size: 0.62rem; font-weight: 600;
+      color: var(--muted); text-transform: uppercase;
+    }
+
+    /* ─── By-outlet view ─── */
+    .outlets-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem; margin-top: 0.5rem;
+    }
+
+    .outlet-block {
+      background: #fff; border: 1px solid var(--border); border-radius: 5px; padding: 1rem 1.2rem;
+      transition: box-shadow 0.2s;
+    }
+    .outlet-block:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
+    .outlet-header {
+      font-family: var(--sans); font-size: 0.88rem; font-weight: 700;
+      margin-bottom: 0.6rem; display: flex; align-items: baseline; gap: 0.5rem;
+    }
+    .outlet-header a { color: var(--text); text-decoration: none; border-bottom: 2px solid; }
+    .outlet-header a:hover { color: var(--link-hover); }
+    .outlet-tagline-sm { font-size: 0.7rem; font-weight: 400; color: var(--muted); font-style: italic; font-family: var(--serif); }
+
+    .outlet-list { list-style: none; }
+    .outlet-list li { padding: 0.3rem 0; border-bottom: 1px solid #f0f0ea; font-size: 0.88rem; }
+    .outlet-list li:last-child { border-bottom: none; }
+    .outlet-list a { color: var(--link); text-decoration: none; }
+    .outlet-list a:hover { color: var(--link-hover); }
+
+    .badge {
+      font-family: var(--sans); font-size: 0.58rem; font-weight: 700;
+      padding: 0.1rem 0.3rem; border-radius: 3px; margin-left: 0.3rem;
+      vertical-align: middle; text-transform: uppercase; letter-spacing: 0.03em;
+    }
+    .badge-pick { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .badge-notable { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+
+    .outlet-empty {
+      font-family: var(--sans); font-size: 0.78rem; color: var(--muted); font-style: italic;
+    }
+
+    .show-more-btn {
+      background: none; border: none; font-family: var(--sans); font-size: 0.72rem;
+      color: var(--muted); cursor: pointer; padding: 0.25rem 0;
+      text-decoration: underline; text-underline-offset: 2px;
+    }
+    .show-more-btn:hover { color: var(--text); }
+
+    /* ─── Archive view ─── */
+    .archive-controls {
+      display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .archive-search {
+      flex: 1; min-width: 200px; padding: 0.45rem 0.75rem;
+      border: 1px solid var(--border); border-radius: 4px;
+      font-size: 0.85rem; font-family: var(--sans);
+      background: #fff;
+    }
+    .archive-search:focus { outline: none; border-color: #999; }
+
+    .archive-select {
+      padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 4px;
+      font-size: 0.78rem; font-family: var(--sans); background: #fff; cursor: pointer;
+    }
+
+    .archive-list { list-style: none; }
+    .archive-item {
+      padding: 0.7rem 0; border-bottom: 1px solid #eeeee6;
+    }
+    .archive-item .story-title { font-size: 0.95rem; }
+    .archive-item .archive-date {
+      font-family: var(--sans); font-size: 0.68rem; color: var(--muted);
+    }
+
+    .archive-pagination {
+      display: flex; justify-content: center; gap: 0.5rem; margin-top: 1.5rem;
+      font-family: var(--sans); font-size: 0.8rem;
+    }
+    .archive-pagination button {
+      background: #fff; border: 1px solid var(--border); padding: 0.3rem 0.8rem;
+      border-radius: 3px; cursor: pointer; font-family: var(--sans); font-size: 0.78rem;
+    }
+    .archive-pagination button:hover { border-color: var(--text); }
+    .archive-pagination button:disabled { opacity: 0.3; cursor: default; }
+    .archive-pagination .page-info { padding: 0.3rem 0; color: var(--muted); }
+
+    /* ─── Footer ─── */
+    footer {
+      border-top: 3px solid var(--text); padding: 2rem 1.5rem;
+      text-align: center; font-family: var(--sans); font-size: 0.72rem;
+      color: var(--muted); line-height: 1.8;
+      background: linear-gradient(180deg, #faf9f5 0%, #f0efe8 100%);
+    }
+    footer a { color: var(--accent-dark); text-decoration: underline; text-underline-offset: 2px; }
+    footer a:hover { color: var(--accent); }
+    .footer-note { font-size: 0.65rem; color: #aaa8a0; margin-top: 0.5rem; max-width: 580px; margin-left: auto; margin-right: auto; }
+
+    /* ─── Loading ─── */
+    .loading-state { text-align: center; padding: 4rem 2rem; color: var(--muted); font-style: italic; }
+
+    /* ─── Mobile ─── */
+    @media (max-width: 900px) {
+      .story-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 750px) {
+      .container { padding: 0 1rem; }
+      h1 { font-size: 2rem; }
+      .header-inner { flex-direction: column; align-items: flex-start; }
+      .header-right { text-align: left; margin-top: 0.5rem; }
+      .story-grid { grid-template-columns: 1fr; }
+      .compact-list { column-count: 1; }
+      .outlets-grid { grid-template-columns: 1fr; }
+      .lead-story { padding: 1.2rem; }
+      .lead-story .story-title { font-size: 1.3rem; }
+      .notable-item { grid-template-columns: 1fr; }
+      .notable-item .right-col { text-align: left; }
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div class="header-inner">
+        <h1>NYC <span class="accent">News</span> Engine</h1>
+        <div class="header-right">
+          <div class="header-date" id="header-date"></div>
+          <div class="refresh-row">
+            <span id="last-updated"></span>
+            <button class="refresh-btn" id="refresh-btn" onclick="forceRefresh()">Refresh</button>
+          </div>
+        </div>
+      </div>
+      <div class="tagline">The city's best journalism, surfaced by depth and insight — not clicks</div>
+    </div>
+  </header>
+
+  <nav>
+    <div class="nav-inner">
+      <button class="nav-btn active" data-view="curated">Today</button>
+      <button class="nav-btn" data-view="by-outlet">By Outlet</button>
+      <button class="nav-btn" data-view="archive">Archive</button>
+      <div class="nav-spacer"></div>
+      <div class="topic-filter-wrap">
+        <button class="topic-toggle" id="topic-toggle">Filter by topic</button>
+        <div class="topic-dropdown" id="topic-dropdown"></div>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <div class="container">
+      <div class="loading-state" id="loading">Fetching and scoring stories from NYC newsrooms...</div>
+
+      <div class="view-panel active" id="view-curated"></div>
+      <div class="view-panel" id="view-by-outlet"></div>
+      <div class="view-panel" id="view-archive"></div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="container">
+      Every link goes to the original source. Support these newsrooms directly.<br>
+      Stories are scored for depth, reporting effort, and policy relevance. Auto-refreshes every 5 minutes.
+      <div class="footer-note">
+        Scoring weighs investigative signals, policy keywords, byline attribution, outlet independence, and recency.
+        Wire-style breaking news and shallow aggregation are deprioritized. This is an editorial lens, not an algorithm.
+        Archive retains 6 months of stories.
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    let feedData = null;
+    let currentView = 'curated';
+    let activeTopic = null;
+
+    // ─── Date ──────────────────────────────────────────
+    const now = new Date();
+    document.getElementById('header-date').textContent = now.toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    });
+
+    // ─── Nav ───────────────────────────────────────────
+    document.querySelectorAll('.nav-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentView = btn.dataset.view;
+        document.querySelectorAll('.view-panel').forEach((p) => p.classList.remove('active'));
+        document.getElementById(`view-${currentView}`).classList.add('active');
+        if (currentView === 'archive') loadArchive();
+      });
+    });
+
+    // ─── Topic filter ──────────────────────────────────
+    const topicToggle = document.getElementById('topic-toggle');
+    const topicDropdown = document.getElementById('topic-dropdown');
+
+    topicToggle.addEventListener('click', () => {
+      topicDropdown.classList.toggle('open');
+      topicToggle.classList.toggle('active');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.topic-filter-wrap')) {
+        topicDropdown.classList.remove('open');
+        topicToggle.classList.remove('active');
+      }
+    });
+
+    function setTopicFilter(topic) {
+      activeTopic = activeTopic === topic ? null : topic;
+      topicToggle.textContent = activeTopic ? activeTopic : 'Filter by topic';
+      topicDropdown.classList.remove('open');
+      if (feedData) renderCurated(feedData);
+      // Update active state in dropdown
+      topicDropdown.querySelectorAll('button').forEach((b) => {
+        b.classList.toggle('active-topic', b.dataset.topic === activeTopic);
+      });
+    }
+
+    // ─── Data fetching ─────────────────────────────────
+    async function loadFeeds() {
+      try {
+        const res = await fetch('/api/feeds');
+        const data = await res.json();
+        feedData = data;
+        document.getElementById('loading').style.display = 'none';
+        renderAll(data);
+        updateTimestamp(data.lastUpdated);
+      } catch (err) {
+        document.getElementById('loading').innerHTML =
+          'Could not load feeds. <button class="refresh-btn" onclick="loadFeeds()">Try again</button>';
+      }
+    }
+
+    async function forceRefresh() {
+      const btn = document.getElementById('refresh-btn');
+      btn.classList.add('loading'); btn.textContent = 'Refreshing...';
+      try {
+        const res = await fetch('/api/refresh', { method: 'POST' });
+        feedData = await res.json();
+        renderAll(feedData);
+        updateTimestamp(feedData.lastUpdated);
+      } catch (e) { loadFeeds(); }
+      btn.classList.remove('loading'); btn.textContent = 'Refresh';
+    }
+
+    function updateTimestamp(iso) {
+      if (!iso) return;
+      document.getElementById('last-updated').textContent =
+        `Updated ${new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    }
+
+    function timeAgo(d) {
+      if (!d) return '';
+      const diff = Date.now() - new Date(d).getTime();
+      const m = Math.floor(diff / 60000);
+      if (m < 1) return 'just now';
+      if (m < 60) return `${m}m ago`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h}h ago`;
+      const days = Math.floor(h / 24);
+      if (days === 1) return 'yesterday';
+      if (days < 7) return `${days}d ago`;
+      return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function topicTagsHtml(topics) {
+      if (!topics || !topics.length) return '';
+      return '<div class="topic-tags">' +
+        topics.map((t) => `<span class="topic-tag" onclick="setTopicFilter('${esc(t)}')">${esc(t)}</span>`).join('') +
+        '</div>';
+    }
+
+    // ─── Render ────────────────────────────────────────
+    function renderAll(data) {
+      buildTopicDropdown(data.curated.topicCounts);
+      renderCurated(data);
+      renderByOutlet(data);
+    }
+
+    function matchesTopic(story) {
+      if (!activeTopic) return true;
+      return (story.topics || []).includes(activeTopic);
+    }
+
+    // ─── Curated view ──────────────────────────────────
+    function renderCurated(data) {
+      const { curated } = data;
+      if (!curated) return;
+      let html = '';
+
+      const essentials = curated.essential.filter(matchesTopic);
+      const analysisItems = (curated.analysis || []).filter(matchesTopic);
+      const notables = curated.notable.filter(matchesTopic);
+      const standards = curated.standard.filter(matchesTopic);
+
+      // Lead story
+      if (essentials.length > 0) {
+        const lead = essentials[0];
+        html += `<div class="section-label">Today's Picks</div>`;
+        html += `<div class="lead-story">`;
+        html += outletLabel(lead);
+        html += `<div class="story-title"><a href="${esc(lead.link)}" target="_blank" rel="noopener">${esc(lead.title)}</a></div>`;
+        if (lead.snippet) html += `<div class="story-snippet">${esc(lead.snippet)}</div>`;
+        html += storyMeta(lead);
+        html += topicTagsHtml(lead.topics);
+        html += `</div>`;
+
+        // Grid of remaining essentials
+        if (essentials.length > 1) {
+          html += '<div class="story-grid">';
+          for (let i = 1; i < essentials.length; i++) {
+            const s = essentials[i];
+            html += `<div class="story-card">`;
+            html += outletLabel(s);
+            html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`;
+            if (s.snippet) html += `<div class="story-snippet">${esc(s.snippet)}</div>`;
+            html += storyMeta(s);
+            html += topicTagsHtml(s.topics);
+            html += `</div>`;
+          }
+          html += '</div>';
+        }
+      }
+
+      // What's Grabbing Headlines
+      const headlineItems = curated.headlines || [];
+      if (headlineItems.length > 0) {
+        html += `<div class="section-label">What's Grabbing Headlines</div>`;
+        html += '<div class="headlines-box">';
+        for (const s of headlineItems) {
+          html += `<div class="headlines-item">`;
+          html += outletLabel(s);
+          html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`;
+          html += `</div>`;
+        }
+        html += '</div>';
+      }
+
+      // Analysis & Commentary
+      if (analysisItems.length > 0) {
+        html += `<div class="section-label">Analysis & Commentary</div>`;
+        html += '<div class="analysis-section">';
+        for (const s of analysisItems) {
+          html += `<div class="analysis-item">`;
+          html += `<div class="analysis-left">`;
+          html += outletLabel(s);
+          html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`;
+          if (s.snippet) html += `<div class="story-snippet">${esc(s.snippet)}</div>`;
+          html += storyMeta(s);
+          html += `</div>`;
+          html += `<div class="analysis-tags">`;
+          html += topicTagsHtml(s.topics);
+          html += `</div>`;
+          html += `</div>`;
+        }
+        html += '</div>';
+      }
+
+      // Notable
+      if (notables.length > 0) {
+        html += `<div class="section-label">Also Notable</div>`;
+        html += '<ul class="notable-list">';
+        for (const s of notables) {
+          html += `<li class="notable-item">`;
+          html += `<div>`;
+          html += outletLabel(s);
+          html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`;
+          html += topicTagsHtml(s.topics);
+          html += `</div>`;
+          html += `<div class="right-col">${s.author ? esc(s.author) + '<br>' : ''}${timeAgo(s.pubDate)}</div>`;
+          html += `</li>`;
+        }
+        html += '</ul>';
+      }
+
+      // Standard
+      if (standards.length > 0) {
+        html += `<div class="section-label">More From NYC Newsrooms</div>`;
+        html += '<ul class="compact-list">';
+        for (const s of standards) {
+          html += `<li class="compact-item">`;
+          html += `<span class="compact-outlet" style="color:${s.outletColor}">${esc(s.outlet)}</span> `;
+          html += `<a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a>`;
+          html += `</li>`;
+        }
+        html += '</ul>';
+      }
+
+      document.getElementById('view-curated').innerHTML = html;
+    }
+
+    function outletLabel(s) {
+      return `<div class="story-outlet"><span class="outlet-dot" style="background:${s.outletColor}"></span>${esc(s.outlet)}</div>`;
+    }
+
+    function storyMeta(s) {
+      const parts = [];
+      if (s.author) parts.push(esc(s.author));
+      if (s.pubDate) parts.push(timeAgo(s.pubDate));
+      return parts.length ? `<div class="story-meta">${parts.join(' · ')}</div>` : '';
+    }
+
+    // ─── Topic dropdown ────────────────────────────────
+    function buildTopicDropdown(counts) {
+      if (!counts) return;
+      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      let html = `<button onclick="setTopicFilter(null)">All topics</button>`;
+      for (const [topic, count] of sorted) {
+        const cls = topic === activeTopic ? ' active-topic' : '';
+        html += `<button class="${cls}" data-topic="${esc(topic)}" onclick="setTopicFilter('${esc(topic)}')">${esc(topic)} <span class="count">${count}</span></button>`;
+      }
+      topicDropdown.innerHTML = html;
+    }
+
+    // ─── By-outlet view ────────────────────────────────
+    function renderByOutlet(data) {
+      const { feeds, outlets } = data;
+      const tiers = { 1: { label: 'Independent & Policy-Focused', items: [] }, 2: { label: 'Major Local Papers', items: [] }, 3: { label: 'Broadcast', items: [] } };
+      for (const o of outlets) tiers[o.tier].items.push(o);
+
+      let html = '';
+      for (const [n, tier] of Object.entries(tiers)) {
+        html += `<div class="section-label">${tier.label}</div>`;
+        html += '<div class="outlets-grid">';
+        for (const outlet of tier.items) {
+          html += renderOutletBlock(outlet, feeds[outlet.slug], n === '1' ? 6 : 4);
+        }
+        html += '</div>';
+      }
+      document.getElementById('view-by-outlet').innerHTML = html;
+    }
+
+    function renderOutletBlock(outlet, feed, max) {
+      let h = `<div class="outlet-block">`;
+      h += `<div class="outlet-header"><a href="${outlet.site}" target="_blank" rel="noopener" style="border-color:${outlet.color}">${outlet.name}</a> <span class="outlet-tagline-sm">${outlet.tagline}</span></div>`;
+
+      if (!feed || feed.error) {
+        const msg = feed?.error === 'No RSS feed available'
+          ? `<a href="${outlet.site}" target="_blank" rel="noopener" style="color:var(--muted)">Visit directly</a>`
+          : 'Feed temporarily unavailable';
+        return h + `<div class="outlet-empty">${msg}</div></div>`;
+      }
+      if (!feed.items.length) return h + '<div class="outlet-empty">No recent stories</div></div>';
+
+      const sorted = [...feed.items].sort((a, b) => b.score - a.score);
+      h += '<ul class="outlet-list">';
+      sorted.forEach((item, i) => {
+        const hide = i >= max ? ' class="hidden"' : '';
+        const badge = item.rank === 'essential' ? '<span class="badge badge-pick">pick</span>'
+          : item.rank === 'notable' ? '<span class="badge badge-notable">notable</span>' : '';
+        h += `<li${hide} data-idx="${i}"><a href="${esc(item.link)}" target="_blank" rel="noopener">${esc(item.title)}</a>${badge}</li>`;
+      });
+      h += '</ul>';
+      if (sorted.length > max) h += `<button class="show-more-btn" onclick="toggleMore(this,${max})">+${sorted.length - max} more</button>`;
+      return h + '</div>';
+    }
+
+    function toggleMore(btn, max) {
+      const ul = btn.previousElementSibling;
+      const hidden = ul.querySelectorAll('li.hidden');
+      if (hidden.length) {
+        hidden.forEach((el) => el.classList.remove('hidden'));
+        btn.textContent = 'Show fewer';
+      } else {
+        ul.querySelectorAll('li').forEach((el, i) => { if (i >= max) el.classList.add('hidden'); });
+        btn.textContent = `+${ul.querySelectorAll('li.hidden').length} more`;
+      }
+    }
+
+    // ─── Archive view ──────────────────────────────────
+    let archivePage = 1;
+    let archiveTopicFilter = '';
+    let archiveOutletFilter = '';
+    let archiveQuery = '';
+
+    async function loadArchive() {
+      const params = new URLSearchParams({ page: archivePage, limit: 50 });
+      if (archiveTopicFilter) params.set('topic', archiveTopicFilter);
+      if (archiveOutletFilter) params.set('outlet', archiveOutletFilter);
+      if (archiveQuery) params.set('q', archiveQuery);
+
+      const res = await fetch(`/api/archive?${params}`);
+      const data = await res.json();
+      renderArchive(data);
+    }
+
+    function renderArchive(data) {
+      const panel = document.getElementById('view-archive');
+      let html = '';
+
+      // Controls
+      html += '<div class="archive-controls">';
+      html += `<input class="archive-search" type="text" placeholder="Search archive..." value="${esc(archiveQuery)}" onkeydown="if(event.key==='Enter'){archiveQuery=this.value;archivePage=1;loadArchive()}">`;
+      html += `<select class="archive-select" onchange="archiveTopicFilter=this.value;archivePage=1;loadArchive()">`;
+      html += `<option value="">All topics</option>`;
+      if (feedData?.curated?.topicCounts) {
+        for (const t of Object.keys(feedData.curated.topicCounts).sort()) {
+          const sel = t === archiveTopicFilter ? ' selected' : '';
+          html += `<option value="${esc(t)}"${sel}>${esc(t)}</option>`;
+        }
+      }
+      html += `</select>`;
+      html += `<select class="archive-select" onchange="archiveOutletFilter=this.value;archivePage=1;loadArchive()">`;
+      html += `<option value="">All outlets</option>`;
+      if (feedData?.outlets) {
+        for (const o of feedData.outlets) {
+          const sel = o.slug === archiveOutletFilter ? ' selected' : '';
+          html += `<option value="${esc(o.slug)}"${sel}>${esc(o.name)}</option>`;
+        }
+      }
+      html += `</select>`;
+      html += '</div>';
+
+      // Stories
+      html += '<ul class="archive-list">';
+      for (const s of data.stories) {
+        const date = s.pub_date ? new Date(s.pub_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+        html += `<li class="archive-item">`;
+        html += `<div class="story-outlet"><span class="outlet-dot" style="background:${s.outlet_color}"></span>${esc(s.outlet_name)}</div>`;
+        html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`;
+        html += `<div class="archive-date">${s.author ? esc(s.author) + ' · ' : ''}${date}</div>`;
+        html += topicTagsHtml(s.topics);
+        html += `</li>`;
+      }
+      html += '</ul>';
+
+      // Pagination
+      html += '<div class="archive-pagination">';
+      html += `<button ${data.page <= 1 ? 'disabled' : ''} onclick="archivePage=${data.page - 1};loadArchive()">Previous</button>`;
+      html += `<span class="page-info">Page ${data.page} of ${data.pages} (${data.total} stories)</span>`;
+      html += `<button ${data.page >= data.pages ? 'disabled' : ''} onclick="archivePage=${data.page + 1};loadArchive()">Next</button>`;
+      html += '</div>';
+
+      panel.innerHTML = html;
+    }
+
+    // ─── Boot ──────────────────────────────────────────
+    loadFeeds();
+    setInterval(loadFeeds, 5 * 60 * 1000);
+  </script>
+</body>
+</html>
