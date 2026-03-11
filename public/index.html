@@ -6,18 +6,18 @@
   <title>NYC News Engine</title>
   <style>
     :root {
-      --bg: #f5f4ef;
-      --text: #1a1a1a;
-      --muted: #7a7a72;
-      --border: #d8d7cf;
-      --card-bg: #ffffff;
-      --accent: #c53030;
-      --accent-dark: #9b2c2c;
-      --accent-light: #fef2f2;
-      --link: #1a1a1a;
-      --link-hover: #c53030;
-      --tag-bg: #eceae4;
-      --tag-text: #555550;
+      --bg: #0f0f0f;
+      --text: #e8e8e8;
+      --muted: #888888;
+      --border: #2a2a2a;
+      --card-bg: #181818;
+      --accent: #e05050;
+      --accent-dark: #f07070;
+      --accent-light: #2a1515;
+      --link: #e0e0e0;
+      --link-hover: #e05050;
+      --tag-bg: #222222;
+      --tag-text: #aaaaaa;
       --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
       --serif: 'Georgia', 'Times New Roman', serif;
     }
@@ -34,8 +34,8 @@
 
     /* ─── Header ─── */
     header {
-      background: linear-gradient(180deg, #fff 0%, #faf9f5 100%);
-      border-bottom: 3px solid var(--text);
+      background: linear-gradient(180deg, #181818 0%, #111111 100%);
+      border-bottom: 3px solid var(--accent);
       padding: 1.8rem 0 1.1rem;
     }
 
@@ -88,7 +88,7 @@
       text-align: center;
       font-style: italic;
       font-size: 0.92rem;
-      color: #888;
+      color: var(--muted);
       padding: 0.7rem 0 0;
       border-top: 1px solid var(--border);
       margin-top: 0.8rem;
@@ -97,10 +97,10 @@
 
     /* ─── Nav ─── */
     nav {
-      background: #fff;
+      background: #141414;
       border-bottom: 1px solid var(--border);
       position: sticky; top: 0; z-index: 100;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
     }
 
     .nav-inner {
@@ -114,8 +114,8 @@
       font-family: var(--sans); font-weight: 500; color: var(--muted);
       transition: all 0.15s; letter-spacing: 0.01em;
     }
-    .nav-btn:hover { color: var(--text); background: #faf9f5; }
-    .nav-btn.active { color: var(--accent-dark); border-bottom-color: var(--accent); font-weight: 700; }
+    .nav-btn:hover { color: var(--text); background: #1e1e1e; }
+    .nav-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
 
     .nav-spacer { flex: 1; }
 
@@ -132,8 +132,8 @@
 
     .topic-dropdown {
       display: none; position: absolute; right: 0; top: 100%; margin-top: 0.3rem;
-      background: #fff; border: 1px solid var(--border); border-radius: 6px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 0.5rem;
+      background: #1e1e1e; border: 1px solid #333; border-radius: 6px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5); padding: 0.5rem;
       min-width: 200px; z-index: 200;
     }
     .topic-dropdown.open { display: block; }
@@ -144,7 +144,7 @@
       cursor: pointer; border-radius: 3px; color: var(--text);
     }
     .topic-dropdown button:hover { background: var(--tag-bg); }
-    .topic-dropdown button.active-topic { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+    .topic-dropdown button.active-topic { background: var(--accent-light); color: var(--accent-dark); font-weight: 600; }
 
     .topic-dropdown .count { color: var(--muted); font-size: 0.68rem; float: right; }
 
@@ -170,16 +170,16 @@
 
     /* ─── Lead story (first essential) ─── */
     .lead-story {
-      background: #fff; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px;
       padding: 2rem; margin-bottom: 1.5rem;
       border-top: 3px solid var(--accent);
-      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      box-shadow: 0 1px 8px rgba(0,0,0,0.3);
     }
 
     .lead-story .story-outlet { margin-bottom: 0.4rem; }
     .lead-story .story-title { font-size: 1.7rem; line-height: 1.2; font-weight: 700; }
     .lead-story .story-snippet {
-      font-size: 1.05rem; margin-top: 0.6rem; color: #444; line-height: 1.55;
+      font-size: 1.05rem; margin-top: 0.6rem; color: #aaa; line-height: 1.55;
       display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
     }
     .lead-story .story-meta { margin-top: 0.5rem; }
@@ -191,20 +191,20 @@
     }
 
     .story-card {
-      background: #fff; border: 1px solid var(--border); border-radius: 5px;
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 5px;
       padding: 1rem 1.1rem;
       transition: all 0.2s ease;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
     }
     .story-card:hover {
-      border-color: #bbb;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      border-color: #444;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.4);
       transform: translateY(-1px);
     }
 
     .story-card .story-title { font-size: 1rem; line-height: 1.25; }
     .story-card .story-snippet {
-      font-size: 0.82rem; margin-top: 0.35rem; color: #555; line-height: 1.45;
+      font-size: 0.82rem; margin-top: 0.35rem; color: #999; line-height: 1.45;
       display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
       overflow: hidden;
     }
@@ -220,7 +220,7 @@
       cursor: pointer; transition: all 0.15s;
       border: 1px solid transparent;
     }
-    .topic-tag:hover { background: #e5e3dd; color: var(--text); border-color: var(--border); }
+    .topic-tag:hover { background: #333; color: var(--text); border-color: #444; }
 
     /* ─── Outlet label ─── */
     .story-outlet {
@@ -238,10 +238,10 @@
       color: var(--link); text-decoration: none; transition: color 0.15s;
     }
     .story-title a:hover { color: var(--link-hover); }
-    .story-title a:visited { color: #888; }
+    .story-title a:visited { color: #666; }
 
     /* ─── Snippet ─── */
-    .story-snippet { font-size: 0.9rem; color: #555; line-height: 1.5; }
+    .story-snippet { font-size: 0.9rem; color: #999; line-height: 1.5; }
 
     /* ─── Meta ─── */
     .story-meta {
@@ -250,17 +250,17 @@
 
     /* ─── Analysis & Commentary section ─── */
     .analysis-section {
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      border-left: 4px solid var(--accent);
+      background: linear-gradient(180deg, #1a1818 0%, #1e1a17 100%);
+      border: 1px solid #332a22;
+      border-radius: 8px;
+      border-left: 5px solid var(--accent);
       padding: 0;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
 
     .analysis-item {
       padding: 1rem 1.3rem;
-      border-bottom: 1px solid #eeeee6;
+      border-bottom: 1px solid #2a2520;
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 1rem;
@@ -268,11 +268,11 @@
     }
 
     .analysis-item:last-child { border-bottom: none; }
-    .analysis-item:hover { background: #fdfcfa; }
+    .analysis-item:hover { background: #221f1a; }
 
     .analysis-left .story-title { font-size: 1.05rem; line-height: 1.3; }
     .analysis-left .story-snippet {
-      font-size: 0.85rem; margin-top: 0.3rem; color: #555; line-height: 1.45;
+      font-size: 0.85rem; margin-top: 0.3rem; color: #999; line-height: 1.45;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     }
 
@@ -288,15 +288,15 @@
 
     /* ─── Headlines box ─── */
     .headlines-box {
-      background: #faf9f5;
-      border: 1px solid var(--border);
-      border-radius: 6px;
+      background: linear-gradient(135deg, #1a1a1a 0%, #151515 100%);
+      border: 2px solid #333;
+      border-radius: 4px;
       padding: 0;
     }
 
     .headlines-item {
       padding: 0.6rem 1.2rem;
-      border-bottom: 1px solid #eeeee6;
+      border-bottom: 1px solid #2a2a2a;
       display: flex;
       align-items: baseline;
       gap: 0.6rem;
@@ -313,16 +313,54 @@
       line-height: 1.3;
     }
 
+    /* ─── Podcast box ─── */
+    .podcast-box {
+      background: #1a1a2e;
+      border-radius: 8px;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .podcast-item {
+      padding: 0.65rem 1.2rem;
+      border-bottom: 1px solid #2a2a42;
+      display: flex;
+      align-items: baseline;
+      gap: 0.7rem;
+    }
+    .podcast-item:last-child { border-bottom: none; }
+
+    .podcast-name {
+      font-family: var(--sans); font-size: 0.68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      color: #a5a5c0; flex-shrink: 0; min-width: 140px;
+      display: inline-flex; align-items: center; gap: 0.35rem;
+    }
+    .podcast-name .pod-dot {
+      width: 6px; height: 6px; border-radius: 50%; display: inline-block;
+    }
+
+    .podcast-item .story-title { font-size: 0.88rem; line-height: 1.3; }
+    .podcast-item .story-title a { color: #e0e0f0; }
+    .podcast-item .story-title a:hover { color: #fff; }
+    .podcast-item .story-title a:visited { color: #8888aa; }
+
     /* ─── Notable list (clean, not cards) ─── */
-    .notable-list { list-style: none; }
+    .notable-list {
+      list-style: none;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0 1rem;
+    }
 
     .notable-item {
-      padding: 0.8rem 0.4rem; border-bottom: 1px solid #eeeee6;
+      padding: 0.8rem 0.2rem; border-bottom: 1px solid #252525;
       display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; align-items: start;
       border-radius: 3px; transition: background 0.15s;
     }
     .notable-item:last-child { border-bottom: none; }
-    .notable-item:hover { background: #faf9f5; }
+    .notable-item:hover { background: #1e1e1e; }
     .notable-item .story-title { font-size: 1rem; }
     .notable-item .right-col {
       text-align: right; font-family: var(--sans); font-size: 0.68rem;
@@ -330,15 +368,19 @@
     }
 
     /* ─── Also from around NYC (compact) ─── */
-    .compact-list { list-style: none; column-count: 2; column-gap: 2rem; }
+    .compact-list {
+      list-style: none; column-count: 2; column-gap: 2rem;
+      background: #111; border-radius: 6px; padding: 0.8rem 1.2rem;
+      border: 1px dashed #333;
+    }
     .compact-item {
       padding: 0.4rem 0; break-inside: avoid;
-      border-bottom: 1px solid #f0f0ea; font-size: 0.9rem;
+      border-bottom: 1px solid #222; font-size: 0.9rem;
     }
     .compact-item:last-child { border-bottom: none; }
-    .compact-item a { color: var(--link); text-decoration: none; }
+    .compact-item a { color: #bbb; text-decoration: none; }
     .compact-item a:hover { color: var(--link-hover); }
-    .compact-item a:visited { color: #999; }
+    .compact-item a:visited { color: #666; }
     .compact-item .compact-outlet {
       font-family: var(--sans); font-size: 0.62rem; font-weight: 600;
       color: var(--muted); text-transform: uppercase;
@@ -351,10 +393,10 @@
     }
 
     .outlet-block {
-      background: #fff; border: 1px solid var(--border); border-radius: 5px; padding: 1rem 1.2rem;
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 5px; padding: 1rem 1.2rem;
       transition: box-shadow 0.2s;
     }
-    .outlet-block:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .outlet-block:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
 
     .outlet-header {
       font-family: var(--sans); font-size: 0.88rem; font-weight: 700;
@@ -365,7 +407,7 @@
     .outlet-tagline-sm { font-size: 0.7rem; font-weight: 400; color: var(--muted); font-style: italic; font-family: var(--serif); }
 
     .outlet-list { list-style: none; }
-    .outlet-list li { padding: 0.3rem 0; border-bottom: 1px solid #f0f0ea; font-size: 0.88rem; }
+    .outlet-list li { padding: 0.3rem 0; border-bottom: 1px solid #252525; font-size: 0.88rem; }
     .outlet-list li:last-child { border-bottom: none; }
     .outlet-list a { color: var(--link); text-decoration: none; }
     .outlet-list a:hover { color: var(--link-hover); }
@@ -375,8 +417,8 @@
       padding: 0.1rem 0.3rem; border-radius: 3px; margin-left: 0.3rem;
       vertical-align: middle; text-transform: uppercase; letter-spacing: 0.03em;
     }
-    .badge-pick { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-    .badge-notable { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .badge-pick { background: #332800; color: #fbbf24; border: 1px solid #554400; }
+    .badge-notable { background: #0a2030; color: #60a5fa; border: 1px solid #1e3a5f; }
 
     .outlet-empty {
       font-family: var(--sans); font-size: 0.78rem; color: var(--muted); font-style: italic;
@@ -399,18 +441,18 @@
       flex: 1; min-width: 200px; padding: 0.45rem 0.75rem;
       border: 1px solid var(--border); border-radius: 4px;
       font-size: 0.85rem; font-family: var(--sans);
-      background: #fff;
+      background: var(--card-bg); color: var(--text);
     }
-    .archive-search:focus { outline: none; border-color: #999; }
+    .archive-search:focus { outline: none; border-color: #555; }
 
     .archive-select {
       padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 4px;
-      font-size: 0.78rem; font-family: var(--sans); background: #fff; cursor: pointer;
+      font-size: 0.78rem; font-family: var(--sans); background: var(--card-bg); color: var(--text); cursor: pointer;
     }
 
     .archive-list { list-style: none; }
     .archive-item {
-      padding: 0.7rem 0; border-bottom: 1px solid #eeeee6;
+      padding: 0.7rem 0; border-bottom: 1px solid #252525;
     }
     .archive-item .story-title { font-size: 0.95rem; }
     .archive-item .archive-date {
@@ -422,8 +464,8 @@
       font-family: var(--sans); font-size: 0.8rem;
     }
     .archive-pagination button {
-      background: #fff; border: 1px solid var(--border); padding: 0.3rem 0.8rem;
-      border-radius: 3px; cursor: pointer; font-family: var(--sans); font-size: 0.78rem;
+      background: var(--card-bg); border: 1px solid var(--border); padding: 0.3rem 0.8rem;
+      border-radius: 3px; cursor: pointer; font-family: var(--sans); font-size: 0.78rem; color: var(--text);
     }
     .archive-pagination button:hover { border-color: var(--text); }
     .archive-pagination button:disabled { opacity: 0.3; cursor: default; }
@@ -431,14 +473,24 @@
 
     /* ─── Footer ─── */
     footer {
-      border-top: 3px solid var(--text); padding: 2rem 1.5rem;
+      border-top: 3px solid var(--accent); padding: 2rem 1.5rem;
       text-align: center; font-family: var(--sans); font-size: 0.72rem;
       color: var(--muted); line-height: 1.8;
-      background: linear-gradient(180deg, #faf9f5 0%, #f0efe8 100%);
+      background: linear-gradient(180deg, #141414 0%, #0a0a0a 100%);
     }
     footer a { color: var(--accent-dark); text-decoration: underline; text-underline-offset: 2px; }
     footer a:hover { color: var(--accent); }
-    .footer-note { font-size: 0.65rem; color: #aaa8a0; margin-top: 0.5rem; max-width: 580px; margin-left: auto; margin-right: auto; }
+    .footer-note { font-size: 0.65rem; color: #555; margin-top: 0.5rem; max-width: 580px; margin-left: auto; margin-right: auto; }
+
+    /* ─── Pick numbers (behavioral: serial position + distinctiveness) ─── */
+    .pick-number {
+      font-family: var(--sans); font-weight: 900; font-size: 2.2rem;
+      color: var(--accent); opacity: 0.3; float: right; line-height: 1;
+      margin-left: 0.5rem; margin-top: -0.2rem;
+    }
+    .pick-number-sm {
+      font-size: 1.5rem; margin-top: -0.1rem;
+    }
 
     /* ─── Loading ─── */
     .loading-state { text-align: center; padding: 4rem 2rem; color: var(--muted); font-style: italic; }
@@ -650,7 +702,8 @@
       if (essentials.length > 0) {
         const lead = essentials[0];
         html += `<div class="section-label">Today's Picks</div>`;
-        html += `<div class="lead-story">`;
+        html += `<div class="lead-story" style="border-left: 5px solid ${lead.outletColor}">`;
+        html += `<span class="pick-number">1</span>`;
         html += outletLabel(lead);
         html += `<div class="story-title"><a href="${esc(lead.link)}" target="_blank" rel="noopener">${esc(lead.title)}</a></div>`;
         if (lead.snippet) html += `<div class="story-snippet">${esc(lead.snippet)}</div>`;
@@ -663,7 +716,8 @@
           html += '<div class="story-grid">';
           for (let i = 1; i < essentials.length; i++) {
             const s = essentials[i];
-            html += `<div class="story-card">`;
+            html += `<div class="story-card" style="border-left: 4px solid ${s.outletColor}">`;
+            html += `<span class="pick-number pick-number-sm">${i + 1}</span>`;
             html += outletLabel(s);
             html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`;
             if (s.snippet) html += `<div class="story-snippet">${esc(s.snippet)}</div>`;
@@ -684,6 +738,20 @@
           html += `<div class="headlines-item">`;
           html += outletLabel(s);
           html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`;
+          html += `</div>`;
+        }
+        html += '</div>';
+      }
+
+      // NYC Podcasts
+      const podcastItems = curated.podcasts || [];
+      if (podcastItems.length > 0) {
+        html += `<div class="section-label">NYC Podcasts — Latest</div>`;
+        html += '<div class="podcast-box">';
+        for (const p of podcastItems) {
+          html += `<div class="podcast-item">`;
+          html += `<span class="podcast-name"><span class="pod-dot" style="background:${p.podcastColor}"></span>${esc(p.podcast)}</span>`;
+          html += `<div class="story-title"><a href="${esc(p.link)}" target="_blank" rel="noopener">${esc(p.title)}</a></div>`;
           html += `</div>`;
         }
         html += '</div>';

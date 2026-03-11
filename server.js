@@ -85,8 +85,7 @@ const OUTLETS = [
   { name: 'ABC7 NY', slug: 'abc7', tier: 3, url: 'https://abc7ny.com/feed/', site: 'https://abc7ny.com', color: '#2b6cb0', tagline: 'Local TV news' },
   { name: 'CBS News NY', slug: 'cbsny', tier: 3, url: null, site: 'https://www.cbsnews.com/newyork/', color: '#1a365d', tagline: 'Local TV news' },
   { name: 'Brooklyn Eagle', slug: 'brooklyn-eagle', tier: 3, url: 'https://brooklyneagle.com/feed/', site: 'https://brooklyneagle.com', color: '#4338ca', tagline: 'Brooklyn borough news' },
-  // Tier 2 — State & national with NYC filter
-  { name: 'Albany Times Union', slug: 'times-union', tier: 2, url: 'https://timesunion.com/news/feed/', site: 'https://www.timesunion.com', color: '#1e3a5f', tagline: 'Albany & state politics' },
+  // Tier 2 — National with NYC filter
   { name: 'Wall Street Journal', slug: 'wsj', tier: 2, url: 'https://feeds.a.dj.com/rss/RSSWorldNews.xml', site: 'https://www.wsj.com', color: '#0a0a0a', tagline: 'Business & policy' },
 ];
 
@@ -317,7 +316,7 @@ async function fetchFeed(outlet) {
     });
 
     // For national outlets, filter to NYC-relevant stories only
-    const nycOnlyFilter = ['propublica', 'bolts', 'the-trace', 'the-markup', 'nymag', 'new-yorker', 'times-union', 'wsj'];
+    const nycOnlyFilter = ['propublica', 'bolts', 'the-trace', 'the-markup', 'nymag', 'new-yorker', 'wsj'];
     let filtered = items;
     if (nycOnlyFilter.includes(outlet.slug)) {
       const NYC_SIGNALS = [
@@ -452,6 +451,34 @@ async function fetchAllFeeds() {
     if (lead) headlines.push(lead);
   }
 
+  // ─── NYC Podcasts — latest episode from each ───
+  const PODCASTS = [
+    { name: 'The Brian Lehrer Show', slug: 'brian-lehrer', url: 'https://feeds.simplecast.com/C8a1jmw4', site: 'https://www.wnyc.org/shows/bl', color: '#1e40af' },
+    { name: 'FAQ NYC', slug: 'faq-nyc', url: 'https://feeds.fireside.fm/faqnyc/rss', site: 'https://faq.nyc', color: '#1a5632' },
+    { name: 'Max Politics', slug: 'max-politics', url: 'https://feeds.soundcloud.com/users/soundcloud:users:205521899/sounds.rss', site: 'https://www.gothamgazette.com/city/6998-max-murphy-on-politics-podcast/', color: '#7c3aed' },
+  ];
+
+  const podcasts = [];
+  for (const pod of PODCASTS) {
+    try {
+      const feed = await parser.parseURL(pod.url);
+      if (feed.items && feed.items.length > 0) {
+        const ep = feed.items[0];
+        podcasts.push({
+          podcast: pod.name,
+          podcastSlug: pod.slug,
+          podcastColor: pod.color,
+          podcastSite: pod.site,
+          title: ep.title || 'Latest Episode',
+          link: ep.link || ep.enclosure?.url || pod.site,
+          pubDate: ep.pubDate || ep.isoDate || null,
+        });
+      }
+    } catch (e) {
+      console.log(`Error fetching podcast ${pod.name}: ${e.message}`);
+    }
+  }
+
   // Collect all active topics for the filter UI
   const topicCounts = {};
   for (const s of deduped) {
@@ -460,7 +487,7 @@ async function fetchAllFeeds() {
     }
   }
 
-  curatedCache = { essential, notable, standard, analysis, headlines, totalScored: deduped.length, topicCounts };
+  curatedCache = { essential, notable, standard, analysis, headlines, podcasts, totalScored: deduped.length, topicCounts };
   feedCache = feeds;
   lastFetchTime = now;
 
