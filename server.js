@@ -195,8 +195,8 @@ function scoreStory(item, outlet) {
 }
 
 function classifyRank(score) {
-  if (score >= 35) return 'essential';
-  if (score >= 20) return 'notable';
+  if (score >= 28) return 'essential';
+  if (score >= 18) return 'notable';
   if (score >= 10) return 'standard';
   return 'brief';
 }
