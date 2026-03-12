@@ -810,15 +810,11 @@
     // Detect non-English text and offer Google Translate link
     function isNonEnglish(text) {
       if (!text) return false;
-      // Accented characters strongly signal non-English
-      const hasAccents = /[àáâãéèêëíìîïóòôõúùûüñçòèù]/.test(text.toLowerCase());
-      // Case-sensitive Spanish checks (avoid matching English "LA", "El Paso", etc.)
-      const spanishWords = /\b(el|la|los|las|del|por|para|con|una|que|como|según|también|sobre|entre|pero|desde|hasta|está|son|hay|fue|pueden)\b/;
-      const creoleWords = /\b(pou|nan|lòt|moun|bagay|oubyen|epi|kijan|lajan|tanpri|yo|fè)\b/;
-      // Require accented chars OR at least 3 Spanish/Creole word matches for confidence
-      if (hasAccents) return true;
-      const spMatches = (text.match(spanishWords) || []).length;
-      const crMatches = (text.match(creoleWords) || []).length;
+      // CJK characters (Chinese, Japanese, Korean), Arabic, Cyrillic — instant match
+      if (/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af\u0600-\u06ff\u0400-\u04ff]/.test(text)) return true;
+      // Accented Latin characters strongly signal non-English
+      if (/[àáâãéèêëíìîïóòôõúùûüñç]/.test(text.toLowerCase())) return true;
+      // Case-sensitive Spanish/Creole — require 3+ word matches for confidence
       const allWords = text.toLowerCase().split(/\s+/);
       const spanishHits = allWords.filter(w => /^(el|la|los|las|del|por|para|con|una|que|como|según|también|sobre|entre|pero|desde|hasta|está|son|hay|fue|pueden)$/.test(w)).length;
       const creoleHits = allWords.filter(w => /^(pou|nan|lòt|moun|bagay|oubyen|epi|kijan|lajan|tanpri|yo|fè)$/.test(w)).length;

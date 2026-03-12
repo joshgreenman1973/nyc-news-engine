@@ -89,7 +89,8 @@ const OUTLETS = [
   { name: 'City & State', slug: 'city-state', tier: 2, url: 'https://www.cityandstateny.com/rss/all/', site: 'https://www.cityandstateny.com', color: '#0e7490', tagline: 'NY government & politics' },
   // Tier 2 — National with NYC filter
   { name: 'Wall Street Journal', slug: 'wsj', tier: 2, url: 'https://feeds.a.dj.com/rss/RSSWorldNews.xml', site: 'https://www.wsj.com', color: '#0a0a0a', tagline: 'Business & policy' },
-  // Tier 1 — Substack / Interview series
+  // Tier 1 — Commentary & interviews
+  { name: 'City Journal', slug: 'city-journal', tier: 1, url: 'https://news.google.com/rss/search?q=site:city-journal.org+NYC+OR+%22new+york%22+when:14d&hl=en-US&gl=US&ceid=US:en', site: 'https://www.city-journal.org', color: '#1e3a5f', tagline: 'Manhattan Institute urban policy' },
   { name: 'NY Editorial Board', slug: 'ny-editorial-board', tier: 1, url: 'https://nyeditorialboard.substack.com/feed', site: 'https://nyeditorialboard.substack.com', color: '#b45309', tagline: 'NYC interviews & commentary' },
 ];
 
@@ -238,7 +239,7 @@ function classifyRank(score) {
 
 // ─── Analysis / commentary detection ──────────────────────────────────
 // Outlets whose content is almost entirely analysis/commentary
-const ANALYSIS_OUTLETS = ['vital-city'];
+const ANALYSIS_OUTLETS = ['vital-city', 'city-journal'];
 
 // Signals in title/snippet/categories that indicate explainer, analysis, op-ed, commentary
 const ANALYSIS_SIGNALS = [
