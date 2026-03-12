@@ -6,18 +6,18 @@
   <title>NYC News Engine</title>
   <style>
     :root {
-      --bg: #0f0f0f;
+      --bg: #1c1c20;
       --text: #e8e8e8;
-      --muted: #888888;
-      --border: #2a2a2a;
-      --card-bg: #181818;
+      --muted: #8a8a94;
+      --border: #333338;
+      --card-bg: #0a0a0c;
       --accent: #e05050;
       --accent-dark: #f07070;
       --accent-light: #2a1515;
       --link: #e0e0e0;
       --link-hover: #e05050;
-      --tag-bg: #222222;
-      --tag-text: #aaaaaa;
+      --tag-bg: #28282e;
+      --tag-text: #a0a0aa;
       --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
       --serif: 'Georgia', 'Times New Roman', serif;
     }
@@ -34,7 +34,7 @@
 
     /* ─── Header ─── */
     header {
-      background: linear-gradient(180deg, #181818 0%, #111111 100%);
+      background: #0a0a0c;
       border-bottom: 3px solid var(--accent);
       padding: 1.8rem 0 1.1rem;
     }
@@ -97,10 +97,10 @@
 
     /* ─── Nav ─── */
     nav {
-      background: #141414;
+      background: #0a0a0c;
       border-bottom: 1px solid var(--border);
       position: sticky; top: 0; z-index: 100;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
     }
 
     .nav-inner {
@@ -114,7 +114,7 @@
       font-family: var(--sans); font-weight: 500; color: var(--muted);
       transition: all 0.15s; letter-spacing: 0.01em;
     }
-    .nav-btn:hover { color: var(--text); background: #1e1e1e; }
+    .nav-btn:hover { color: var(--text); background: #151518; }
     .nav-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
 
     .nav-spacer { flex: 1; }
@@ -132,8 +132,8 @@
 
     .topic-dropdown {
       display: none; position: absolute; right: 0; top: 100%; margin-top: 0.3rem;
-      background: #1e1e1e; border: 1px solid #333; border-radius: 6px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5); padding: 0.5rem;
+      background: #0a0a0c; border: 1px solid #333338; border-radius: 6px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6); padding: 0.5rem;
       min-width: 200px; z-index: 200;
     }
     .topic-dropdown.open { display: block; }
@@ -162,6 +162,7 @@
       display: flex; align-items: center; gap: 0.6rem;
     }
     .section-label:first-child { margin-top: 0; }
+    .section-icon { font-size: 0.85rem; opacity: 0.7; }
     .section-label::after {
       content: ''; flex: 1; height: 2px;
       background: linear-gradient(90deg, var(--accent) 0%, transparent 100%);
@@ -220,7 +221,7 @@
       cursor: pointer; transition: all 0.15s;
       border: 1px solid transparent;
     }
-    .topic-tag:hover { background: #333; color: var(--text); border-color: #444; }
+    .topic-tag:hover { background: #38383e; color: var(--text); border-color: #48484e; }
 
     /* ─── Outlet label ─── */
     .story-outlet {
@@ -250,17 +251,17 @@
 
     /* ─── Analysis & Commentary section ─── */
     .analysis-section {
-      background: linear-gradient(180deg, #1a1818 0%, #1e1a17 100%);
-      border: 1px solid #332a22;
+      background: linear-gradient(180deg, #0c0a08 0%, #0e0c0a 100%);
+      border: 1px solid #2a2520;
       border-radius: 8px;
       border-left: 5px solid var(--accent);
       padding: 0;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.4);
     }
 
     .analysis-item {
       padding: 1rem 1.3rem;
-      border-bottom: 1px solid #2a2520;
+      border-bottom: 1px solid #1e1a17;
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 1rem;
@@ -268,7 +269,7 @@
     }
 
     .analysis-item:last-child { border-bottom: none; }
-    .analysis-item:hover { background: #221f1a; }
+    .analysis-item:hover { background: #15120f; }
 
     .analysis-left .story-title { font-size: 1.05rem; line-height: 1.3; }
     .analysis-left .story-snippet {
@@ -288,15 +289,15 @@
 
     /* ─── Headlines box ─── */
     .headlines-box {
-      background: linear-gradient(135deg, #1a1a1a 0%, #151515 100%);
-      border: 2px solid #333;
+      background: #0a0a0c;
+      border: 2px solid #333338;
       border-radius: 4px;
       padding: 0;
     }
 
     .headlines-item {
       padding: 0.6rem 1.2rem;
-      border-bottom: 1px solid #2a2a2a;
+      border-bottom: 1px solid #1e1e22;
       display: flex;
       align-items: baseline;
       gap: 0.6rem;
@@ -315,7 +316,8 @@
 
     /* ─── Podcast box ─── */
     .podcast-box {
-      background: #1a1a2e;
+      background: #08081a;
+      border: 1px solid #1a1a30;
       border-radius: 8px;
       padding: 0;
       overflow: hidden;
@@ -323,7 +325,7 @@
 
     .podcast-item {
       padding: 0.65rem 1.2rem;
-      border-bottom: 1px solid #2a2a42;
+      border-bottom: 1px solid #15152a;
       display: flex;
       align-items: baseline;
       gap: 0.7rem;
@@ -355,12 +357,12 @@
     }
 
     .notable-item {
-      padding: 0.8rem 0.2rem; border-bottom: 1px solid #252525;
+      padding: 0.8rem 0.2rem; border-bottom: 1px solid #1a1a1e;
       display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; align-items: start;
       border-radius: 3px; transition: background 0.15s;
     }
     .notable-item:last-child { border-bottom: none; }
-    .notable-item:hover { background: #1e1e1e; }
+    .notable-item:hover { background: #111114; }
     .notable-item .story-title { font-size: 1rem; }
     .notable-item .right-col {
       text-align: right; font-family: var(--sans); font-size: 0.68rem;
@@ -370,12 +372,12 @@
     /* ─── Also from around NYC (compact) ─── */
     .compact-list {
       list-style: none; column-count: 2; column-gap: 2rem;
-      background: #111; border-radius: 6px; padding: 0.8rem 1.2rem;
-      border: 1px dashed #333;
+      background: #0e0e12; border-radius: 6px; padding: 0.8rem 1.2rem;
+      border: 1px dashed #333338;
     }
     .compact-item {
       padding: 0.4rem 0; break-inside: avoid;
-      border-bottom: 1px solid #222; font-size: 0.9rem;
+      border-bottom: 1px solid #1a1a1e; font-size: 0.9rem;
     }
     .compact-item:last-child { border-bottom: none; }
     .compact-item a { color: #bbb; text-decoration: none; }
@@ -407,7 +409,7 @@
     .outlet-tagline-sm { font-size: 0.7rem; font-weight: 400; color: var(--muted); font-style: italic; font-family: var(--serif); }
 
     .outlet-list { list-style: none; }
-    .outlet-list li { padding: 0.3rem 0; border-bottom: 1px solid #252525; font-size: 0.88rem; }
+    .outlet-list li { padding: 0.3rem 0; border-bottom: 1px solid #1a1a1e; font-size: 0.88rem; }
     .outlet-list li:last-child { border-bottom: none; }
     .outlet-list a { color: var(--link); text-decoration: none; }
     .outlet-list a:hover { color: var(--link-hover); }
@@ -452,7 +454,7 @@
 
     .archive-list { list-style: none; }
     .archive-item {
-      padding: 0.7rem 0; border-bottom: 1px solid #252525;
+      padding: 0.7rem 0; border-bottom: 1px solid #1a1a1e;
     }
     .archive-item .story-title { font-size: 0.95rem; }
     .archive-item .archive-date {
@@ -476,7 +478,7 @@
       border-top: 3px solid var(--accent); padding: 2rem 1.5rem;
       text-align: center; font-family: var(--sans); font-size: 0.72rem;
       color: var(--muted); line-height: 1.8;
-      background: linear-gradient(180deg, #141414 0%, #0a0a0a 100%);
+      background: #0a0a0c;
     }
     footer a { color: var(--accent-dark); text-decoration: underline; text-underline-offset: 2px; }
     footer a:hover { color: var(--accent); }
@@ -701,7 +703,7 @@
       // Lead story
       if (essentials.length > 0) {
         const lead = essentials[0];
-        html += `<div class="section-label">Today's Picks</div>`;
+        html += `<div class="section-label"><span class="section-icon">&#9733;</span> Today's Picks</div>`;
         html += `<div class="lead-story" style="border-left: 5px solid ${lead.outletColor}">`;
         html += `<span class="pick-number">1</span>`;
         html += outletLabel(lead);
@@ -732,7 +734,7 @@
       // What's Grabbing Headlines
       const headlineItems = curated.headlines || [];
       if (headlineItems.length > 0) {
-        html += `<div class="section-label">What's Grabbing Headlines</div>`;
+        html += `<div class="section-label"><span class="section-icon">&#9889;</span> What's Grabbing Headlines</div>`;
         html += '<div class="headlines-box">';
         for (const s of headlineItems) {
           html += `<div class="headlines-item">`;
@@ -746,7 +748,7 @@
       // NYC Podcasts
       const podcastItems = curated.podcasts || [];
       if (podcastItems.length > 0) {
-        html += `<div class="section-label">NYC Podcasts — Latest</div>`;
+        html += `<div class="section-label"><span class="section-icon">&#127911;</span> NYC Podcasts — Latest</div>`;
         html += '<div class="podcast-box">';
         for (const p of podcastItems) {
           html += `<div class="podcast-item">`;
@@ -759,7 +761,7 @@
 
       // Analysis & Commentary
       if (analysisItems.length > 0) {
-        html += `<div class="section-label">Analysis & Commentary</div>`;
+        html += `<div class="section-label"><span class="section-icon">&#128270;</span> Analysis & Commentary</div>`;
         html += '<div class="analysis-section">';
         for (const s of analysisItems) {
           html += `<div class="analysis-item">`;
@@ -779,7 +781,7 @@
 
       // Notable
       if (notables.length > 0) {
-        html += `<div class="section-label">Also Notable</div>`;
+        html += `<div class="section-label"><span class="section-icon">&#9679;</span> Also Notable</div>`;
         html += '<ul class="notable-list">';
         for (const s of notables) {
           html += `<li class="notable-item">`;
@@ -796,7 +798,7 @@
 
       // Standard
       if (standards.length > 0) {
-        html += `<div class="section-label">More From NYC Newsrooms</div>`;
+        html += `<div class="section-label"><span class="section-icon">&#8942;</span> More From NYC Newsrooms</div>`;
         html += '<ul class="compact-list">';
         for (const s of standards) {
           html += `<li class="compact-item">`;
