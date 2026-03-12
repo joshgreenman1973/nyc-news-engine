@@ -596,6 +596,35 @@
       color: var(--muted); white-space: nowrap; padding-top: 0.15rem;
     }
 
+    /* ─── Sort toggle ─── */
+    .sort-toggle {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      font-family: var(--sans); font-size: 0.7rem; font-weight: 600;
+      color: var(--muted); background: transparent;
+      border: 1px solid var(--border); border-radius: 14px;
+      padding: 3px 12px 3px 8px; cursor: pointer;
+      margin-left: 0.8rem; vertical-align: middle;
+      transition: all 0.2s ease;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .sort-toggle:hover { color: var(--text); border-color: #555; }
+    .sort-toggle.active { color: var(--accent-dark); border-color: var(--accent); background: var(--accent-light); }
+    .sort-toggle .toggle-icon {
+      display: inline-block; transition: transform 0.3s ease;
+    }
+    .sort-toggle.active .toggle-icon { transform: rotate(180deg); }
+
+    /* Animate cards when reordering */
+    .picks-container .lead-story,
+    .picks-container .story-card {
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+    .picks-container.shuffling .lead-story,
+    .picks-container.shuffling .story-card {
+      opacity: 0;
+      transform: scale(0.95) translateY(8px);
+    }
+
     /* ─── Loading ─── */
     .loading-state { text-align: center; padding: 4rem 2rem; color: var(--muted); font-style: italic; }
 
@@ -834,36 +863,18 @@
       const notables = curated.notable.filter(matchesTopic);
       const standards = curated.standard.filter(matchesTopic);
 
-      // Lead story
+      // Lead story + grid — store essentials for re-sort toggle
       if (essentials.length > 0) {
-        const lead = essentials[0];
-        html += `<div class="section-label"><span class="section-icon">&#9733;</span> Today's Picks <span class="tooltip-wrap"><span class="tooltip-icon">?</span><div class="tooltip-bubble">Stories are scored on <strong>depth of reporting</strong> (investigative signals, expert sourcing, data), <strong>policy relevance</strong> (NYC governance, housing, transit, etc.), <strong>outlet independence</strong> (local nonprofits weighted over wire services), and <strong>freshness</strong> (big boost for stories under 3 hours old, tapering out at 12h). Only stories from the last 36 hours qualify. Max 2 per outlet to ensure variety.</div></span></div>`;
-        html += `<div class="lead-story" style="border-left: 5px solid ${lead.outletColor}">`;
-        html += `<span class="pick-number">1</span>`;
-        html += outletLabel(lead) + newBadge(lead.pubDate);
-        html += `<div class="story-title"><a href="${esc(lead.link)}" target="_blank" rel="noopener">${esc(lead.title)}</a>${translateBtn(lead.title, lead.link)}</div>`;
-        if (lead.snippet) html += `<div class="story-snippet">${esc(lead.snippet)}</div>`;
-        html += storyMeta(lead);
-        html += topicTagsHtml(lead.topics);
+        html += `<div class="section-label"><span class="section-icon">&#9733;</span> Today's Picks <span class="tooltip-wrap"><span class="tooltip-icon">?</span><div class="tooltip-bubble">Stories are scored on <strong>depth of reporting</strong> (investigative signals, expert sourcing, data), <strong>policy relevance</strong> (NYC governance, housing, transit, etc.), <strong>outlet independence</strong> (local nonprofits weighted over wire services), and <strong>freshness</strong> (big boost for stories under 3 hours old, tapering out at 12h). Only stories from the last 36 hours qualify. Max 3 per outlet to ensure variety.</div></span>`;
+        html += `<button class="sort-toggle" id="picks-sort-toggle" onclick="togglePicksSort()"><span class="toggle-icon">↕</span> Newest first</button>`;
         html += `</div>`;
-
-        // Grid of remaining essentials
-        if (essentials.length > 1) {
-          html += '<div class="story-grid">';
-          for (let i = 1; i < essentials.length; i++) {
-            const s = essentials[i];
-            html += `<div class="story-card" style="border-left: 4px solid ${s.outletColor}">`;
-            html += `<span class="pick-number pick-number-sm">${i + 1}</span>`;
-            html += outletLabel(s) + newBadge(s.pubDate);
-            html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a>${translateBtn(s.title, s.link)}</div>`;
-            if (s.snippet) html += `<div class="story-snippet">${esc(s.snippet)}</div>`;
-            html += storyMeta(s);
-            html += topicTagsHtml(s.topics);
-            html += `</div>`;
-          }
-          html += '</div>';
-        }
+        html += `<div class="picks-container" id="picks-container">`;
+        html += renderPicksCards(essentials, false);
+        html += `</div>`;
       }
+
+      // Store essentials globally for re-sort
+      window._essentials = essentials;
 
       // What's Grabbing Headlines
       const headlineItems = curated.headlines || [];
@@ -959,6 +970,67 @@
       }
 
       document.getElementById('view-curated').innerHTML = html;
+    }
+
+    // Render the picks cards (lead + grid) — reusable for both sort orders
+    function renderPicksCards(items, chronological) {
+      let sorted = [...items];
+      if (chronological) {
+        sorted.sort((a, b) => new Date(b.pubDate || 0) - new Date(a.pubDate || 0));
+      }
+      let h = '';
+      const lead = sorted[0];
+      h += `<div class="lead-story" style="border-left: 5px solid ${lead.outletColor}">`;
+      h += `<span class="pick-number">${chronological ? '' : '1'}</span>`;
+      h += outletLabel(lead) + newBadge(lead.pubDate);
+      h += `<div class="story-title"><a href="${esc(lead.link)}" target="_blank" rel="noopener">${esc(lead.title)}</a>${translateBtn(lead.title, lead.link)}</div>`;
+      if (lead.snippet) h += `<div class="story-snippet">${esc(lead.snippet)}</div>`;
+      h += storyMeta(lead);
+      h += topicTagsHtml(lead.topics);
+      h += `</div>`;
+      if (sorted.length > 1) {
+        h += '<div class="story-grid">';
+        for (let i = 1; i < sorted.length; i++) {
+          const s = sorted[i];
+          h += `<div class="story-card" style="border-left: 4px solid ${s.outletColor}">`;
+          h += `<span class="pick-number pick-number-sm">${chronological ? '' : (i + 1)}</span>`;
+          h += outletLabel(s) + newBadge(s.pubDate);
+          h += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a>${translateBtn(s.title, s.link)}</div>`;
+          if (s.snippet) h += `<div class="story-snippet">${esc(s.snippet)}</div>`;
+          h += storyMeta(s);
+          h += topicTagsHtml(s.topics);
+          h += `</div>`;
+        }
+        h += '</div>';
+      }
+      return h;
+    }
+
+    let picksChronological = false;
+    function togglePicksSort() {
+      const container = document.getElementById('picks-container');
+      const btn = document.getElementById('picks-sort-toggle');
+      if (!container || !window._essentials) return;
+
+      // Phase 1: fade out
+      container.classList.add('shuffling');
+
+      setTimeout(() => {
+        // Phase 2: swap content
+        picksChronological = !picksChronological;
+        container.innerHTML = renderPicksCards(window._essentials, picksChronological);
+        btn.classList.toggle('active', picksChronological);
+        btn.innerHTML = picksChronological
+          ? '<span class="toggle-icon">↕</span> By importance'
+          : '<span class="toggle-icon">↕</span> Newest first';
+
+        // Phase 3: keep shuffling class briefly so new content starts hidden
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            container.classList.remove('shuffling');
+          });
+        });
+      }, 300);
     }
 
     // ─── Latest view ───────────────────────────────────
