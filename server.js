@@ -173,6 +173,25 @@ const SHALLOW_SIGNALS = [
   'slideshow', 'gallery', 'ranked', 'top 10',
 ];
 
+// Soft-news / lifestyle / sports signals → heavy penalty to keep out of Today's Picks
+const SOFT_NEWS_SIGNALS = [
+  'kids reporter', 'yes network', 'celebrity', 'real housewives',
+  'restaurant review', 'best restaurants', 'best bars', 'food hall',
+  'broadway', 'theater review', 'movie review', 'book review',
+  'fashion', 'style', 'recipe', 'cooking',
+  'mets', 'yankees', 'knicks', 'nets', 'rangers', 'islanders',
+  'giants', 'jets', 'nycfc', 'red bulls', 'liberty',
+  'game recap', 'box score', 'free agent', 'trade deadline',
+  'draft pick', 'spring training', 'preseason', 'playoff',
+  'concert', 'festival', 'nightlife', 'club', 'bar opening',
+  'dating', 'relationship', 'horoscope', 'astrology',
+  'best places to', 'things to do', 'weekend guide', 'where to eat',
+  'listicle', 'bucket list', 'hidden gem',
+  'puppy', 'dog park', 'cat cafe', 'pet',
+  'viral', 'tiktok', 'instagram', 'influencer',
+  'reality tv', 'reality show', 'bachelor', 'survivor',
+];
+
 function scoreStory(item, outlet) {
   let score = 0;
   const combined = `${item.title} ${item.snippet || ''}`.toLowerCase();
@@ -185,6 +204,9 @@ function scoreStory(item, outlet) {
   }
   for (const s of SHALLOW_SIGNALS) {
     if (combined.includes(s.toLowerCase())) score -= 12;
+  }
+  for (const s of SOFT_NEWS_SIGNALS) {
+    if (combined.includes(s.toLowerCase())) { score -= 20; break; }
   }
 
   const titleWords = (item.title || '').split(/\s+/).length;
