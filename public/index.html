@@ -168,6 +168,32 @@
       background: linear-gradient(90deg, var(--accent) 0%, transparent 100%);
       opacity: 0.2;
     }
+    .tooltip-wrap {
+      position: relative; display: inline-flex; align-items: center;
+    }
+    .tooltip-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 1.5px solid var(--muted); color: var(--muted);
+      font-size: 0.6rem; font-weight: 700; font-family: var(--sans);
+      cursor: help; line-height: 1; flex-shrink: 0;
+    }
+    .tooltip-icon:hover { border-color: var(--accent-dark); color: var(--accent-dark); }
+    .tooltip-bubble {
+      display: none; position: absolute; left: 50%; top: 130%;
+      transform: translateX(-50%); width: 320px; z-index: 100;
+      background: #1a1a22; border: 1px solid var(--border); border-radius: 8px;
+      padding: 0.85rem 1rem; font-size: 0.72rem; font-weight: 400;
+      text-transform: none; letter-spacing: 0; line-height: 1.55;
+      color: var(--text); box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+    .tooltip-bubble::before {
+      content: ''; position: absolute; top: -6px; left: 50%;
+      transform: translateX(-50%); border-left: 6px solid transparent;
+      border-right: 6px solid transparent; border-bottom: 6px solid var(--border);
+    }
+    .tooltip-wrap:hover .tooltip-bubble { display: block; }
+    .tooltip-bubble strong { color: var(--accent-dark); }
 
     /* ─── Lead story (first essential) ─── */
     .lead-story {
@@ -749,7 +775,7 @@
       // Lead story
       if (essentials.length > 0) {
         const lead = essentials[0];
-        html += `<div class="section-label"><span class="section-icon">&#9733;</span> Today's Picks</div>`;
+        html += `<div class="section-label"><span class="section-icon">&#9733;</span> Today's Picks <span class="tooltip-wrap"><span class="tooltip-icon">?</span><div class="tooltip-bubble">Stories are scored on <strong>depth of reporting</strong> (investigative signals, expert sourcing, data), <strong>policy relevance</strong> (NYC governance, housing, transit, etc.), <strong>outlet independence</strong> (local nonprofits weighted over wire services), and <strong>freshness</strong> (big boost for stories under 3 hours old, tapering out at 12h). Only stories from the last 36 hours qualify. Max 2 per outlet to ensure variety.</div></span></div>`;
         html += `<div class="lead-story" style="border-left: 5px solid ${lead.outletColor}">`;
         html += `<span class="pick-number">1</span>`;
         html += outletLabel(lead) + newBadge(lead.pubDate);
