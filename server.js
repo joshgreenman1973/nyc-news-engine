@@ -421,29 +421,47 @@ async function fetchAllFeeds() {
   const analysisIds = new Set(analysis.map((s) => s.id));
 
   // Today's Picks: only stories from last 36 hours
-  const FRESHNESS_CUTOFF = 36 * 3600 * 1000; // 36 hours in ms
+  // Sort candidates by a display score that heavily rewards freshness
+  // so this morning's stories beat yesterday's high-scorers
+  const FRESHNESS_CUTOFF = 36 * 3600 * 1000;
   const nowMs = Date.now();
 
-  const essential = [];
-  const notable = [];
-  const standard = [];
-  const outletCount = {};
+  const essentialCandidates = newsPool.filter(s => {
+    if (analysisIds.has(s.id)) return false;
+    if (s.rank !== 'essential') return false;
+    const age = s.pubDate ? nowMs - new Date(s.pubDate).getTime() : Infinity;
+    return age < FRESHNESS_CUTOFF;
+  });
 
-  for (const s of newsPool) {
-    if (analysisIds.has(s.id)) continue; // skip if already in analysis
+  // Display sort: big freshness boost so recent stories surface to top
+  essentialCandidates.sort((a, b) => {
+    const ageA = a.pubDate ? (nowMs - new Date(a.pubDate).getTime()) / 3600000 : 999;
+    const ageB = b.pubDate ? (nowMs - new Date(b.pubDate).getTime()) / 3600000 : 999;
+    // Bonus: +20 if <3h, +12 if <6h, +6 if <12h
+    const freshA = ageA < 3 ? 20 : ageA < 6 ? 12 : ageA < 12 ? 6 : 0;
+    const freshB = ageB < 3 ? 20 : ageB < 6 ? 12 : ageB < 12 ? 6 : 0;
+    return (b.score + freshB) - (a.score + freshA);
+  });
+
+  const essential = [];
+  const outletCount = {};
+  for (const s of essentialCandidates) {
+    if (essential.length >= 12) break;
     const slug = s.outletSlug;
     outletCount[slug] = (outletCount[slug] || 0);
+    if (outletCount[slug] < 2) {
+      essential.push(s);
+      outletCount[slug]++;
+    }
+  }
 
-    // For essential picks, enforce freshness (36h)
-    const age = s.pubDate ? nowMs - new Date(s.pubDate).getTime() : Infinity;
-    const isFresh = age < FRESHNESS_CUTOFF;
+  const essentialIds = new Set(essential.map(s => s.id));
+  const notable = [];
+  const standard = [];
 
-    if (s.rank === 'essential' && essential.length < 10 && isFresh) {
-      if (outletCount[slug] < 3) {
-        essential.push(s);
-        outletCount[slug]++;
-      }
-    } else if (s.rank === 'notable' && notable.length < 15) {
+  for (const s of newsPool) {
+    if (analysisIds.has(s.id) || essentialIds.has(s.id)) continue;
+    if (s.rank === 'notable' && notable.length < 15) {
       notable.push(s);
     } else if (s.rank === 'standard' && standard.length < 20) {
       standard.push(s);
