@@ -87,6 +87,8 @@ const OUTLETS = [
   { name: 'Brooklyn Eagle', slug: 'brooklyn-eagle', tier: 3, url: 'https://brooklyneagle.com/feed/', site: 'https://brooklyneagle.com', color: '#4338ca', tagline: 'Brooklyn borough news' },
   // Tier 2 — National with NYC filter
   { name: 'Wall Street Journal', slug: 'wsj', tier: 2, url: 'https://feeds.a.dj.com/rss/RSSWorldNews.xml', site: 'https://www.wsj.com', color: '#0a0a0a', tagline: 'Business & policy' },
+  // Tier 1 — Substack / Interview series
+  { name: 'NY Editorial Board', slug: 'ny-editorial-board', tier: 1, url: 'https://nyeditorialboard.substack.com/feed', site: 'https://nyeditorialboard.substack.com', color: '#b45309', tagline: 'NYC interviews & commentary' },
 ];
 
 // ─── Topic classification ─────────────────────────────────────────────
@@ -418,6 +420,10 @@ async function fetchAllFeeds() {
   const analysis = analysisPool.slice(0, 10);
   const analysisIds = new Set(analysis.map((s) => s.id));
 
+  // Today's Picks: only stories from last 36 hours
+  const FRESHNESS_CUTOFF = 36 * 3600 * 1000; // 36 hours in ms
+  const nowMs = Date.now();
+
   const essential = [];
   const notable = [];
   const standard = [];
@@ -428,7 +434,11 @@ async function fetchAllFeeds() {
     const slug = s.outletSlug;
     outletCount[slug] = (outletCount[slug] || 0);
 
-    if (s.rank === 'essential' && essential.length < 12) {
+    // For essential picks, enforce freshness (36h)
+    const age = s.pubDate ? nowMs - new Date(s.pubDate).getTime() : Infinity;
+    const isFresh = age < FRESHNESS_CUTOFF;
+
+    if (s.rank === 'essential' && essential.length < 10 && isFresh) {
       if (outletCount[slug] < 3) {
         essential.push(s);
         outletCount[slug]++;
@@ -487,7 +497,13 @@ async function fetchAllFeeds() {
     }
   }
 
-  curatedCache = { essential, notable, standard, analysis, headlines, podcasts, totalScored: deduped.length, topicCounts };
+  // "Latest" view — all stories sorted by pub date descending
+  const latest = [...deduped]
+    .filter((s) => s.pubDate)
+    .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
+    .slice(0, 80);
+
+  curatedCache = { essential, notable, standard, analysis, headlines, podcasts, latest, totalScored: deduped.length, topicCounts };
   feedCache = feeds;
   lastFetchTime = now;
 

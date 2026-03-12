@@ -494,6 +494,32 @@
       font-size: 1.5rem; margin-top: -0.1rem;
     }
 
+    /* ─── Latest view ─── */
+    .latest-list {
+      list-style: none;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0 1rem;
+    }
+
+    .latest-item {
+      padding: 0.7rem 0.2rem; border-bottom: 1px solid #1a1a1e;
+      display: grid; grid-template-columns: 70px 1fr auto; gap: 0.7rem; align-items: start;
+    }
+    .latest-item:last-child { border-bottom: none; }
+    .latest-item:hover { background: #111114; }
+
+    .latest-time {
+      font-family: var(--sans); font-size: 0.72rem; font-weight: 600;
+      color: var(--accent-dark); white-space: nowrap; padding-top: 0.15rem;
+    }
+
+    .latest-item .right-col {
+      text-align: right; font-family: var(--sans); font-size: 0.68rem;
+      color: var(--muted); white-space: nowrap; padding-top: 0.15rem;
+    }
+
     /* ─── Loading ─── */
     .loading-state { text-align: center; padding: 4rem 2rem; color: var(--muted); font-style: italic; }
 
@@ -539,6 +565,7 @@
   <nav>
     <div class="nav-inner">
       <button class="nav-btn active" data-view="curated">Today</button>
+      <button class="nav-btn" data-view="latest">Latest</button>
       <button class="nav-btn" data-view="by-outlet">By Outlet</button>
       <button class="nav-btn" data-view="archive">Archive</button>
       <div class="nav-spacer"></div>
@@ -554,6 +581,7 @@
       <div class="loading-state" id="loading">Fetching and scoring stories from NYC newsrooms...</div>
 
       <div class="view-panel active" id="view-curated"></div>
+      <div class="view-panel" id="view-latest"></div>
       <div class="view-panel" id="view-by-outlet"></div>
       <div class="view-panel" id="view-archive"></div>
     </div>
@@ -681,6 +709,7 @@
     function renderAll(data) {
       buildTopicDropdown(data.curated.topicCounts);
       renderCurated(data);
+      renderLatest(data);
       renderByOutlet(data);
     }
 
@@ -810,6 +839,32 @@
       }
 
       document.getElementById('view-curated').innerHTML = html;
+    }
+
+    // ─── Latest view ───────────────────────────────────
+    function renderLatest(data) {
+      const { curated } = data;
+      if (!curated || !curated.latest) return;
+
+      const items = curated.latest.filter(matchesTopic);
+      let html = '';
+
+      html += `<div class="section-label"><span class="section-icon">&#128337;</span> Latest — Sorted by Time</div>`;
+      html += '<ul class="latest-list">';
+      for (const s of items) {
+        html += `<li class="latest-item">`;
+        html += `<div class="latest-time">${timeAgo(s.pubDate)}</div>`;
+        html += `<div>`;
+        html += outletLabel(s);
+        html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`;
+        html += topicTagsHtml(s.topics);
+        html += `</div>`;
+        html += `<div class="right-col">${s.author ? esc(s.author) : ''}</div>`;
+        html += `</li>`;
+      }
+      html += '</ul>';
+
+      document.getElementById('view-latest').innerHTML = html;
     }
 
     function outletLabel(s) {
