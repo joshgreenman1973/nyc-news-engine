@@ -493,6 +493,17 @@
     .pick-number-sm {
       font-size: 1.5rem; margin-top: -0.1rem;
     }
+    .badge-new {
+      display: inline-block; font-family: var(--sans); font-size: 0.65rem;
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+      color: #fff; background: #d93025; border-radius: 3px;
+      padding: 2px 6px; margin-left: 0.5rem; vertical-align: middle;
+      animation: pulse-new 2s ease-in-out infinite;
+    }
+    @keyframes pulse-new {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
 
     /* ─── Latest view ─── */
     .latest-list {
@@ -696,6 +707,12 @@
       return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
 
+    function isNew(d) {
+      if (!d) return false;
+      return (Date.now() - new Date(d).getTime()) < 2 * 60 * 60 * 1000;
+    }
+    function newBadge(d) { return isNew(d) ? '<span class="badge-new">New</span>' : ''; }
+
     function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
     function topicTagsHtml(topics) {
@@ -735,7 +752,7 @@
         html += `<div class="section-label"><span class="section-icon">&#9733;</span> Today's Picks</div>`;
         html += `<div class="lead-story" style="border-left: 5px solid ${lead.outletColor}">`;
         html += `<span class="pick-number">1</span>`;
-        html += outletLabel(lead);
+        html += outletLabel(lead) + newBadge(lead.pubDate);
         html += `<div class="story-title"><a href="${esc(lead.link)}" target="_blank" rel="noopener">${esc(lead.title)}</a></div>`;
         if (lead.snippet) html += `<div class="story-snippet">${esc(lead.snippet)}</div>`;
         html += storyMeta(lead);
@@ -749,7 +766,7 @@
             const s = essentials[i];
             html += `<div class="story-card" style="border-left: 4px solid ${s.outletColor}">`;
             html += `<span class="pick-number pick-number-sm">${i + 1}</span>`;
-            html += outletLabel(s);
+            html += outletLabel(s) + newBadge(s.pubDate);
             html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`;
             if (s.snippet) html += `<div class="story-snippet">${esc(s.snippet)}</div>`;
             html += storyMeta(s);
