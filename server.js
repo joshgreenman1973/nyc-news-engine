@@ -8,10 +8,9 @@ const app = express();
 app.use(express.json());
 
 const parser = new Parser({
-  timeout: 10000,
+  timeout: 12000,
   headers: {
-    'User-Agent': 'NYC-News-Engine/1.0 (local news aggregator)',
-    Accept: 'application/rss+xml, application/xml, text/xml',
+    Accept: 'application/rss+xml, application/xml, text/xml, */*',
   },
 });
 
@@ -85,10 +84,24 @@ const OUTLETS = [
   { name: 'ABC7 NY', slug: 'abc7', tier: 3, url: 'https://abc7ny.com/feed/', site: 'https://abc7ny.com', color: '#2b6cb0', tagline: 'Local TV news' },
   { name: 'CBS News NY', slug: 'cbsny', tier: 3, url: null, site: 'https://www.cbsnews.com/newyork/', color: '#1a365d', tagline: 'Local TV news' },
   { name: 'Brooklyn Eagle', slug: 'brooklyn-eagle', tier: 3, url: 'https://brooklyneagle.com/feed/', site: 'https://brooklyneagle.com', color: '#4338ca', tagline: 'Brooklyn borough news' },
+  // Tier 2 — State politics & Albany coverage
+  { name: 'Politico NY', slug: 'politico-ny', tier: 2, url: 'https://rss.politico.com/new-york-playbook.xml', site: 'https://www.politico.com/new-york', color: '#be123c', tagline: 'Albany & City Hall insider' },
+  { name: 'City & State', slug: 'city-state', tier: 2, url: 'https://www.cityandstateny.com/rss/all/', site: 'https://www.cityandstateny.com', color: '#0e7490', tagline: 'NY government & politics' },
   // Tier 2 — National with NYC filter
   { name: 'Wall Street Journal', slug: 'wsj', tier: 2, url: 'https://feeds.a.dj.com/rss/RSSWorldNews.xml', site: 'https://www.wsj.com', color: '#0a0a0a', tagline: 'Business & policy' },
   // Tier 1 — Substack / Interview series
   { name: 'NY Editorial Board', slug: 'ny-editorial-board', tier: 1, url: 'https://nyeditorialboard.substack.com/feed', site: 'https://nyeditorialboard.substack.com', color: '#b45309', tagline: 'NYC interviews & commentary' },
+];
+
+// ─── Civic / watchdog organizations (separate from news outlets) ──────
+const CIVIC_ORGS = [
+  { name: 'NYC Comptroller', slug: 'comptroller', url: 'https://comptroller.nyc.gov/feed/', site: 'https://comptroller.nyc.gov', color: '#2563eb' },
+  { name: 'Reinvent Albany', slug: 'reinvent-albany', url: 'https://reinventalbany.org/feed/', site: 'https://reinventalbany.org', color: '#16a34a' },
+  { name: 'Fiscal Policy Institute', slug: 'fpi', url: 'https://fiscalpolicy.org/feed', site: 'https://fiscalpolicy.org', color: '#0891b2' },
+  { name: 'NYC Council', slug: 'nyc-council', url: 'https://council.nyc.gov/feed/', site: 'https://council.nyc.gov', color: '#4f46e5' },
+  { name: 'Citizens Budget Commission', slug: 'cbc', url: 'https://news.google.com/rss/search?q=%22citizens+budget+commission%22+when:30d&hl=en-US&gl=US&ceid=US:en', site: 'https://cbcny.org', color: '#0d9488' },
+  { name: 'Manhattan Institute', slug: 'manhattan-inst', url: 'https://news.google.com/rss/search?q=site:manhattan.institute+when:30d&hl=en-US&gl=US&ceid=US:en', site: 'https://manhattan.institute', color: '#dc2626' },
+  { name: 'Center for an Urban Future', slug: 'cuf', url: 'https://news.google.com/rss/search?q=site:nycfuture.org+when:60d&hl=en-US&gl=US&ceid=US:en', site: 'https://nycfuture.org', color: '#ca8a04' },
 ];
 
 // ─── Topic classification ─────────────────────────────────────────────
@@ -318,7 +331,7 @@ async function fetchFeed(outlet) {
     });
 
     // For national outlets, filter to NYC-relevant stories only
-    const nycOnlyFilter = ['propublica', 'bolts', 'the-trace', 'the-markup', 'nymag', 'new-yorker', 'wsj'];
+    const nycOnlyFilter = ['propublica', 'bolts', 'the-trace', 'the-markup', 'nymag', 'new-yorker', 'wsj', 'ny-post'];
     let filtered = items;
     if (nycOnlyFilter.includes(outlet.slug)) {
       const NYC_SIGNALS = [
@@ -443,13 +456,18 @@ async function fetchAllFeeds() {
     return (b.score + freshB) - (a.score + freshA);
   });
 
+  // Per-outlet caps: tight for high-volume outlets, generous for others
+  const OUTLET_CAP = { 'documented': 2, 'ny-post': 2, 'abc7': 2, 'el-diario': 2 };
+  const DEFAULT_CAP = 3;
+
   const essential = [];
   const outletCount = {};
   for (const s of essentialCandidates) {
-    if (essential.length >= 12) break;
+    if (essential.length >= 13) break;
     const slug = s.outletSlug;
     outletCount[slug] = (outletCount[slug] || 0);
-    if (outletCount[slug] < 2) {
+    const cap = OUTLET_CAP[slug] || DEFAULT_CAP;
+    if (outletCount[slug] < cap) {
       essential.push(s);
       outletCount[slug]++;
     }
@@ -507,6 +525,41 @@ async function fetchAllFeeds() {
     }
   }
 
+  // ─── Civic / watchdog reports ───
+  const civicReports = [];
+  for (const org of CIVIC_ORGS) {
+    try {
+      const feed = await parser.parseURL(org.url);
+      if (feed.items && feed.items.length > 0) {
+        for (const item of feed.items.slice(0, 3)) {
+          civicReports.push({
+            org: org.name,
+            orgSlug: org.slug,
+            orgColor: org.color,
+            orgSite: org.site,
+            title: item.title || 'Untitled',
+            link: item.link || org.site,
+            pubDate: item.pubDate || item.isoDate || null,
+            snippet: (item.contentSnippet || item.content || '').replace(/<[^>]+>/g, '').substring(0, 180),
+          });
+        }
+      }
+    } catch (e) {
+      console.log(`Error fetching civic org ${org.name}: ${e.message}`);
+    }
+  }
+  // Sort by date descending, filter junk, cap at 8
+  const filteredCivic = civicReports
+    .filter(r => {
+      // Filter out Google News junk (non-English spam, very short titles)
+      if (!r.title || r.title.length < 10) return false;
+      if (/[^\x00-\x7F\u00C0-\u024F\u1E00-\u1EFF]/.test(r.title)) return false; // non-Latin chars
+      if (r.title.toLowerCase().includes('tag:')) return false;
+      return true;
+    })
+    .sort((a, b) => new Date(b.pubDate || 0) - new Date(a.pubDate || 0))
+    .slice(0, 8);
+
   // Collect all active topics for the filter UI
   const topicCounts = {};
   for (const s of deduped) {
@@ -521,7 +574,7 @@ async function fetchAllFeeds() {
     .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
     .slice(0, 80);
 
-  curatedCache = { essential, notable, standard, analysis, headlines, podcasts, latest, totalScored: deduped.length, topicCounts };
+  curatedCache = { essential, notable, standard, analysis, headlines, podcasts, civicReports: filteredCivic, latest, totalScored: deduped.length, topicCounts };
   feedCache = feeds;
   lastFetchTime = now;
 

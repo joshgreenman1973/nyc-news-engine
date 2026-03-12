@@ -332,7 +332,8 @@
 
     .headlines-item .story-outlet {
       flex-shrink: 0;
-      min-width: 100px;
+      width: 130px;
+      min-width: 130px;
     }
 
     .headlines-item .story-title {
@@ -361,7 +362,7 @@
     .podcast-name {
       font-family: var(--sans); font-size: 0.68rem; font-weight: 700;
       text-transform: uppercase; letter-spacing: 0.04em;
-      color: #a5a5c0; flex-shrink: 0; min-width: 140px;
+      color: #a5a5c0; flex-shrink: 0; width: 170px; min-width: 170px;
       display: inline-flex; align-items: center; gap: 0.35rem;
     }
     .podcast-name .pod-dot {
@@ -531,6 +532,44 @@
       50% { opacity: 0.6; }
     }
 
+    /* ─── Civic reports box ─── */
+    .civic-box {
+      background: #0a0c0a;
+      border: 1px solid #1a2a1a;
+      border-radius: 8px;
+      padding: 0;
+      overflow: hidden;
+    }
+    .civic-item {
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid #152015;
+    }
+    .civic-item:last-child { border-bottom: none; }
+    .civic-org {
+      font-family: var(--sans); font-size: 0.62rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      margin-bottom: 0.2rem;
+    }
+    .civic-org .civic-dot {
+      width: 6px; height: 6px; border-radius: 50%; display: inline-block;
+    }
+    .civic-item .story-title { font-size: 0.85rem; line-height: 1.3; }
+    .civic-item .story-title a { color: #c8d8c8; }
+    .civic-item .story-title a:hover { color: #fff; }
+    .civic-item .civic-time {
+      font-family: var(--sans); font-size: 0.62rem; color: var(--muted); margin-top: 0.15rem;
+    }
+
+    .btn-translate {
+      display: inline-block; font-family: var(--sans); font-size: 0.65rem;
+      font-weight: 600; color: #93c5fd; background: rgba(59,130,246,0.15);
+      border: 1px solid rgba(59,130,246,0.3); border-radius: 4px;
+      padding: 2px 8px; margin-left: 0.5rem; cursor: pointer;
+      text-decoration: none; vertical-align: middle;
+    }
+    .btn-translate:hover { background: rgba(59,130,246,0.25); color: #bfdbfe; }
+
     /* ─── Latest view ─── */
     .latest-list {
       list-style: none;
@@ -595,7 +634,7 @@
           </div>
         </div>
       </div>
-      <div class="tagline">The city's best journalism, surfaced by depth and insight — not clicks</div>
+      <div class="tagline">The city's public policy journalism, surfaced by insight and importance</div>
     </div>
   </header>
 
@@ -739,6 +778,29 @@
     }
     function newBadge(d) { return isNew(d) ? '<span class="badge-new">New</span>' : ''; }
 
+    // Detect non-English text and offer Google Translate link
+    function isNonEnglish(text) {
+      if (!text) return false;
+      // Accented characters strongly signal non-English
+      const hasAccents = /[àáâãéèêëíìîïóòôõúùûüñçòèù]/.test(text.toLowerCase());
+      // Case-sensitive Spanish checks (avoid matching English "LA", "El Paso", etc.)
+      const spanishWords = /\b(el|la|los|las|del|por|para|con|una|que|como|según|también|sobre|entre|pero|desde|hasta|está|son|hay|fue|pueden)\b/;
+      const creoleWords = /\b(pou|nan|lòt|moun|bagay|oubyen|epi|kijan|lajan|tanpri|yo|fè)\b/;
+      // Require accented chars OR at least 3 Spanish/Creole word matches for confidence
+      if (hasAccents) return true;
+      const spMatches = (text.match(spanishWords) || []).length;
+      const crMatches = (text.match(creoleWords) || []).length;
+      const allWords = text.toLowerCase().split(/\s+/);
+      const spanishHits = allWords.filter(w => /^(el|la|los|las|del|por|para|con|una|que|como|según|también|sobre|entre|pero|desde|hasta|está|son|hay|fue|pueden)$/.test(w)).length;
+      const creoleHits = allWords.filter(w => /^(pou|nan|lòt|moun|bagay|oubyen|epi|kijan|lajan|tanpri|yo|fè)$/.test(w)).length;
+      return spanishHits >= 3 || creoleHits >= 3;
+    }
+    function translateBtn(title, link) {
+      if (!isNonEnglish(title)) return '';
+      const tUrl = `https://translate.google.com/translate?sl=auto&tl=en&u=${encodeURIComponent(link)}`;
+      return `<a href="${tUrl}" target="_blank" rel="noopener" class="btn-translate">Translate</a>`;
+    }
+
     function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
     function topicTagsHtml(topics) {
@@ -779,7 +841,7 @@
         html += `<div class="lead-story" style="border-left: 5px solid ${lead.outletColor}">`;
         html += `<span class="pick-number">1</span>`;
         html += outletLabel(lead) + newBadge(lead.pubDate);
-        html += `<div class="story-title"><a href="${esc(lead.link)}" target="_blank" rel="noopener">${esc(lead.title)}</a></div>`;
+        html += `<div class="story-title"><a href="${esc(lead.link)}" target="_blank" rel="noopener">${esc(lead.title)}</a>${translateBtn(lead.title, lead.link)}</div>`;
         if (lead.snippet) html += `<div class="story-snippet">${esc(lead.snippet)}</div>`;
         html += storyMeta(lead);
         html += topicTagsHtml(lead.topics);
@@ -793,7 +855,7 @@
             html += `<div class="story-card" style="border-left: 4px solid ${s.outletColor}">`;
             html += `<span class="pick-number pick-number-sm">${i + 1}</span>`;
             html += outletLabel(s) + newBadge(s.pubDate);
-            html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`;
+            html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a>${translateBtn(s.title, s.link)}</div>`;
             if (s.snippet) html += `<div class="story-snippet">${esc(s.snippet)}</div>`;
             html += storyMeta(s);
             html += topicTagsHtml(s.topics);
@@ -831,6 +893,21 @@
         html += '</div>';
       }
 
+      // Civic / Watchdog Reports
+      const civicItems = curated.civicReports || [];
+      if (civicItems.length > 0) {
+        html += `<div class="section-label"><span class="section-icon">&#127963;</span> Policy & Watchdog Reports</div>`;
+        html += '<div class="civic-box">';
+        for (const c of civicItems) {
+          html += `<div class="civic-item">`;
+          html += `<div class="civic-org"><span class="civic-dot" style="background:${c.orgColor}"></span><span style="color:${c.orgColor}">${esc(c.org)}</span></div>`;
+          html += `<div class="story-title"><a href="${esc(c.link)}" target="_blank" rel="noopener">${esc(c.title)}</a></div>`;
+          if (c.pubDate) html += `<div class="civic-time">${timeAgo(c.pubDate)}</div>`;
+          html += `</div>`;
+        }
+        html += '</div>';
+      }
+
       // Analysis & Commentary
       if (analysisItems.length > 0) {
         html += `<div class="section-label"><span class="section-icon">&#128270;</span> Analysis & Commentary</div>`;
@@ -839,7 +916,7 @@
           html += `<div class="analysis-item">`;
           html += `<div class="analysis-left">`;
           html += outletLabel(s);
-          html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`;
+          html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a>${translateBtn(s.title, s.link)}</div>`;
           if (s.snippet) html += `<div class="story-snippet">${esc(s.snippet)}</div>`;
           html += storyMeta(s);
           html += `</div>`;
@@ -859,7 +936,7 @@
           html += `<li class="notable-item">`;
           html += `<div>`;
           html += outletLabel(s);
-          html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`;
+          html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a>${translateBtn(s.title, s.link)}</div>`;
           html += topicTagsHtml(s.topics);
           html += `</div>`;
           html += `<div class="right-col">${s.author ? esc(s.author) + '<br>' : ''}${timeAgo(s.pubDate)}</div>`;
@@ -875,7 +952,7 @@
         for (const s of standards) {
           html += `<li class="compact-item">`;
           html += `<span class="compact-outlet" style="color:${s.outletColor}">${esc(s.outlet)}</span> `;
-          html += `<a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a>`;
+          html += `<a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a>${translateBtn(s.title, s.link)}`;
           html += `</li>`;
         }
         html += '</ul>';
