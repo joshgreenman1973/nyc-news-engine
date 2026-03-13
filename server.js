@@ -578,6 +578,14 @@ async function fetchAllFeeds() {
       if (!r.title || r.title.length < 10) return false;
       if (/[^\x00-\x7F\u00C0-\u024F\u1E00-\u1EFF]/.test(r.title)) return false; // non-Latin chars
       if (r.title.toLowerCase().includes('tag:')) return false;
+      // Filter out archive pages, author indexes, category pages
+      const lower = r.title.toLowerCase();
+      if (/\barchives?\b/.test(lower) && !lower.includes('report')) return false;
+      if (/\b(all posts|all articles|browse by|category:|topic:)\b/.test(lower)) return false;
+      // Filter links that look like index/tag/archive URLs rather than articles
+      const link = (r.link || '').toLowerCase();
+      if (/\/(tag|category|author|archives?)\/?$/.test(link)) return false;
+      if (/\/(tag|category|author)\/[^/]+\/?$/.test(link) && !link.includes('-20')) return false;
       return true;
     })
     .sort((a, b) => new Date(b.pubDate || 0) - new Date(a.pubDate || 0))
