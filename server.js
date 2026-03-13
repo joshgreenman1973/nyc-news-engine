@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 
 const parser = new Parser({
-  timeout: 15000,
+  timeout: 8000,
   headers: {
     Accept: 'application/rss+xml, application/xml, text/xml, */*',
     'User-Agent': 'Mozilla/5.0 (compatible; NYCNewsEngine/1.0)',
@@ -425,6 +425,7 @@ function archiveStories(stories) {
 let feedCache = {};
 let curatedCache = null;
 let lastFetchTime = null;
+let fetchInProgress = null;
 const CACHE_TTL = 5 * 60 * 1000;
 
 async function fetchAllFeeds() {
@@ -432,6 +433,13 @@ async function fetchAllFeeds() {
   if (lastFetchTime && now - lastFetchTime < CACHE_TTL && curatedCache) {
     return { feeds: feedCache, curated: curatedCache };
   }
+  // Prevent concurrent fetches — reuse in-flight promise
+  if (fetchInProgress) return fetchInProgress;
+  fetchInProgress = _doFetchAllFeeds(now);
+  try { return await fetchInProgress; } finally { fetchInProgress = null; }
+}
+
+async function _doFetchAllFeeds(now) {
 
   console.log(`[${new Date().toLocaleTimeString()}] Refreshing all feeds...`);
 
@@ -664,6 +672,11 @@ app.get('/health', (req, res) => {
 
 app.get('/api/feeds', async (req, res) => {
   try {
+    // If cache is warm, return immediately
+    if (curatedCache && feedCache && Object.keys(feedCache).length > 0) {
+      return res.json({ feeds: feedCache, curated: curatedCache, lastUpdated: lastFetchTime ? new Date(lastFetchTime).toISOString() : null, outlets: OUTLETS });
+    }
+    // Cache not ready — wait for the initial fetch (only happens on cold start)
     const { feeds, curated } = await fetchAllFeeds();
     res.json({ feeds, curated, lastUpdated: lastFetchTime ? new Date(lastFetchTime).toISOString() : null, outlets: OUTLETS });
   } catch (err) {
@@ -742,4 +755,10 @@ const PORT = process.env.PORT || 3456;
 app.listen(PORT, () => {
   console.log(`NYC News Engine running at http://localhost:${PORT}`);
   fetchAllFeeds();
+  // Keep cache warm — refresh every 5 minutes in the background
+  setInterval(() => {
+    lastFetchTime = null;
+    curatedCache = null;
+    fetchAllFeeds().catch(err => console.error('Background refresh error:', err.message));
+  }, 5 * 60 * 1000);
 });
