@@ -834,8 +834,56 @@
     }
     function translateBtn(title, link) {
       if (!isNonEnglish(title)) return '';
-      const tUrl = `https://translate.google.com/translate?sl=auto&tl=en&u=${encodeURIComponent(link)}`;
-      return `<a href="${tUrl}" target="_blank" rel="noopener" class="btn-translate">Translate</a>`;
+      return `<button class="btn-translate" onclick="translateInPlace(this)" data-original="${esc(title)}">Translate</button>`;
+    }
+
+    async function translateInPlace(btn) {
+      const original = btn.getAttribute('data-original');
+      if (!original) return;
+
+      // Find the parent story-title element
+      const titleEl = btn.closest('.story-title') || btn.parentElement.querySelector('.story-title');
+      const snippetEl = btn.parentElement?.querySelector('.story-snippet')
+        || btn.closest('.lead-story')?.querySelector('.story-snippet')
+        || btn.closest('.story-card')?.querySelector('.story-snippet')
+        || btn.closest('.analysis-left')?.querySelector('.story-snippet')
+        || btn.closest('.civic-item')?.querySelector('.story-snippet');
+
+      btn.textContent = '...';
+      btn.disabled = true;
+
+      try {
+        // Translate title
+        const titleResp = await fetch('/api/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: original }),
+        });
+        const titleData = await titleResp.json();
+        if (titleData.translated) {
+          // Replace only the text node inside the <a>, keep the link
+          const anchor = (titleEl || btn.parentElement).querySelector('a');
+          if (anchor) anchor.textContent = titleData.translated;
+        }
+
+        // Translate snippet if present
+        if (snippetEl && snippetEl.textContent.trim()) {
+          const snipResp = await fetch('/api/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: snippetEl.textContent.trim() }),
+          });
+          const snipData = await snipResp.json();
+          if (snipData.translated) snippetEl.textContent = snipData.translated;
+        }
+
+        btn.textContent = 'Translated';
+        btn.style.borderColor = 'var(--accent)';
+        btn.style.color = 'var(--accent)';
+      } catch (e) {
+        btn.textContent = 'Error';
+        btn.disabled = false;
+      }
     }
 
     function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }

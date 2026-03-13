@@ -607,6 +607,28 @@ async function fetchAllFeeds() {
 
 // ─── API routes ───────────────────────────────────────────────────────
 
+// ─── Translation endpoint ─────────────────────────────────────────────
+app.post('/api/translate', async (req, res) => {
+  try {
+    const { text, to = 'en' } = req.body;
+    if (!text || typeof text !== 'string') return res.status(400).json({ error: 'Missing text' });
+
+    // Use Google's free translate API endpoint
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(to)}&dt=t&q=${encodeURIComponent(text)}`;
+    const resp = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!resp.ok) throw new Error(`Translate API ${resp.status}`);
+
+    const data = await resp.json();
+    // Response format: [[["translated text","original text",null,null,N],...],null,"detected_lang"]
+    const translated = data[0].map(seg => seg[0]).join('');
+    const detectedLang = data[2] || 'unknown';
+    res.json({ translated, detectedLang });
+  } catch (err) {
+    console.error('Translation error:', err.message);
+    res.status(500).json({ error: 'Translation failed' });
+  }
+});
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', stories: curatedCache?.totalScored || 0, lastUpdated: lastFetchTime ? new Date(lastFetchTime).toISOString() : null });
 });
