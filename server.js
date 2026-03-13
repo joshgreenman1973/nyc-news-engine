@@ -153,15 +153,25 @@ const DEPTH_SIGNALS = [
   'policy', 'legislation', 'budget', 'zoning', 'regulation',
   'affordable housing', 'public health', 'criminal justice',
   'education policy', 'transit', 'infrastructure', 'climate',
-  'migrant', 'immigration', 'asylum', 'shelter system',
-  'mental health', 'homelessness', 'eviction', 'tenant',
+  'migrant', 'immigration', 'asylum', 'shelter system', 'shelter',
+  'mental health', 'homelessness', 'homeless', 'eviction', 'tenant',
+  'outreach', 'social worker', 'social service', 'case manager',
+  'supportive housing', 'housing first', 'permanent housing',
   'policing', 'surveillance', 'civil rights', 'civil liberties',
   'public housing', 'NYCHA', 'MTA', 'congestion pricing',
+  'child welfare', 'foster care', 'juvenile justice',
+  'opioid', 'fentanyl', 'overdose', 'harm reduction',
+  'reentry', 'recidivism', 'parole', 'probation', 'rikers',
+  'workforce', 'job training', 'wage', 'labor',
+  'food insecurity', 'food pantry', 'snap', 'benefits',
+  'disability', 'medicaid', 'health care', 'hospital',
   'months-long', 'year-long', 'series', 'part 1', 'part 2',
   'special report', 'long read', 'feature',
   'first-person', 'oral history', 'profile',
   'community', 'neighborhood', 'borough', 'council',
   'city hall', 'Albany', 'state legislature',
+  'reform', 'overhaul', 'effectiveness', 'program', 'initiative',
+  'disparity', 'inequality', 'equity',
 ];
 
 const SHALLOW_SIGNALS = [
@@ -201,14 +211,27 @@ function scoreStory(item, outlet) {
   if (outlet.tier === 1) score += 15;
   else if (outlet.tier === 2) score += 5;
 
+  // Count depth signal hits — each hit adds points, and multiple hits compound
+  let depthHits = 0;
   for (const s of DEPTH_SIGNALS) {
-    if (combined.includes(s.toLowerCase())) score += 8;
+    if (combined.includes(s.toLowerCase())) { score += 6; depthHits++; }
   }
+  // Compound bonus: stories hitting 3+ policy signals are likely deeply relevant
+  if (depthHits >= 4) score += 12;
+  else if (depthHits >= 3) score += 8;
+  else if (depthHits >= 2) score += 4;
+
   for (const s of SHALLOW_SIGNALS) {
     if (combined.includes(s.toLowerCase())) score -= 12;
   }
   for (const s of SOFT_NEWS_SIGNALS) {
     if (combined.includes(s.toLowerCase())) { score -= 20; break; }
+  }
+
+  // NYT nyregion, Gothamist, City Limits etc. — check if URL indicates local policy beat
+  const link = (item.link || '').toLowerCase();
+  if (link.includes('/nyregion/') || link.includes('/nyc/') || link.includes('/new-york/')) {
+    score += 3;
   }
 
   const titleWords = (item.title || '').split(/\s+/).length;
