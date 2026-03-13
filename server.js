@@ -202,6 +202,10 @@ const SOFT_NEWS_SIGNALS = [
   'puppy', 'dog park', 'cat cafe', 'pet',
   'viral', 'tiktok', 'instagram', 'influencer',
   'reality tv', 'reality show', 'bachelor', 'survivor',
+  'oscars', 'academy awards', 'emmy', 'grammy', 'golden globe', 'tony awards',
+  'red carpet', 'award show', 'awards ceremony', 'super bowl halftime',
+  'bay area', 'los angeles', 'hollywood', 'conan o\'brien',
+  'kardashian', 'taylor swift', 'beyonce', 'drake',
 ];
 
 function scoreStory(item, outlet) {
@@ -398,7 +402,7 @@ async function fetchFeed(outlet) {
     }
 
     // For national outlets, filter to NYC-relevant stories only
-    const nycOnlyFilter = ['propublica', 'bolts', 'the-trace', 'the-markup', 'nymag', 'new-yorker', 'wsj', 'ny-post'];
+    const nycOnlyFilter = ['propublica', 'bolts', 'the-trace', 'the-markup', 'nymag', 'new-yorker', 'wsj', 'ny-post', 'abc7', 'pix11', 'amny'];
     let filtered = items;
     if (nycOnlyFilter.includes(outlet.slug)) {
       const NYC_SIGNALS = [
