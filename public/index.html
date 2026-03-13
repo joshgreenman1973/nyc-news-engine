@@ -508,6 +508,42 @@
     .archive-pagination button:disabled { opacity: 0.3; cursor: default; }
     .archive-pagination .page-info { padding: 0.3rem 0; color: var(--muted); }
 
+    /* ─── Media Map ─── */
+    .media-map-intro {
+      font-family: var(--serif); font-size: 0.92rem; color: var(--muted);
+      line-height: 1.6; margin-bottom: 1.5rem; max-width: 680px;
+    }
+    .media-map-category {
+      margin-bottom: 2rem;
+    }
+    .media-map-category-header {
+      font-family: var(--sans); font-size: 0.7rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+      border-bottom: 1px solid var(--border); padding-bottom: 0.4rem;
+      margin-bottom: 0.6rem;
+    }
+    .media-map-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 0.4rem 1rem;
+    }
+    .media-map-item {
+      font-family: var(--sans); font-size: 0.78rem; line-height: 1.7;
+      display: flex; align-items: baseline; gap: 0.35rem;
+    }
+    .media-map-item a {
+      color: var(--text); text-decoration: none; border-bottom: 1px solid transparent;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .media-map-item a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+    .media-map-item .mm-type {
+      font-size: 0.6rem; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.04em; flex-shrink: 0; min-width: 28px;
+    }
+    .mm-tracked {
+      color: var(--accent); font-size: 0.55rem; font-weight: 700;
+      letter-spacing: 0.03em; margin-left: 0.2rem;
+    }
+
     /* ─── Footer ─── */
     footer {
       border-top: 1px solid var(--border); padding: 2.5rem 1.5rem;
@@ -685,6 +721,7 @@
       <button class="nav-btn" data-view="latest">Latest</button>
       <button class="nav-btn" data-view="by-outlet">By Outlet</button>
       <button class="nav-btn" data-view="archive">Archive</button>
+      <button class="nav-btn" data-view="media-map">Media Map</button>
       <div class="nav-spacer"></div>
       <div class="topic-filter-wrap">
         <button class="topic-toggle" id="topic-toggle">Filter by topic</button>
@@ -701,6 +738,7 @@
       <div class="view-panel" id="view-latest"></div>
       <div class="view-panel" id="view-by-outlet"></div>
       <div class="view-panel" id="view-archive"></div>
+      <div class="view-panel" id="view-media-map"></div>
     </div>
   </main>
 
@@ -736,6 +774,7 @@
         document.querySelectorAll('.view-panel').forEach((p) => p.classList.remove('active'));
         document.getElementById(`view-${currentView}`).classList.add('active');
         if (currentView === 'archive') loadArchive();
+        if (currentView === 'media-map') renderMediaMap();
       });
     });
 
@@ -1115,8 +1154,21 @@
       document.getElementById('view-latest').innerHTML = html;
     }
 
+    function lightenDotColor(hex) {
+      // Dark colors (near-black) are invisible on our dark bg — lighten them
+      if (!hex) return '#9b9fbc';
+      const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+      const luminance = (0.299*r + 0.587*g + 0.114*b);
+      if (luminance < 60) {
+        // Shift toward a visible muted tone
+        return `rgb(${Math.min(r+100,200)}, ${Math.min(g+100,200)}, ${Math.min(b+120,220)})`;
+      }
+      return hex;
+    }
+
     function outletLabel(s) {
-      return `<div class="story-outlet"><span class="outlet-dot" style="background:${s.outletColor}"></span>${esc(s.outlet)}</div>`;
+      const dotColor = lightenDotColor(s.outletColor || s.outlet_color);
+      return `<div class="story-outlet"><span class="outlet-dot" style="background:${dotColor}"></span>${esc(s.outlet || s.outlet_name)}</div>`;
     }
 
     function storyMeta(s) {
@@ -1157,16 +1209,11 @@
     }
 
     function renderOutletBlock(outlet, feed, max) {
+      // Skip outlets with no feed data — don't show empty cards
+      if (!feed || feed.error || !feed.items || !feed.items.length) return '';
+
       let h = `<div class="outlet-block">`;
       h += `<div class="outlet-header"><a href="${outlet.site}" target="_blank" rel="noopener" style="border-color:${outlet.color}">${outlet.name}</a> <span class="outlet-tagline-sm">${outlet.tagline}</span></div>`;
-
-      if (!feed || feed.error) {
-        const msg = feed?.error === 'No RSS feed available'
-          ? `<a href="${outlet.site}" target="_blank" rel="noopener" style="color:var(--muted)">Visit directly</a>`
-          : 'Feed temporarily unavailable';
-        return h + `<div class="outlet-empty">${msg}</div></div>`;
-      }
-      if (!feed.items.length) return h + '<div class="outlet-empty">No recent stories</div></div>';
 
       const sorted = [...feed.items].sort((a, b) => b.score - a.score);
       h += '<ul class="outlet-list">';
@@ -1242,7 +1289,7 @@
       for (const s of data.stories) {
         const date = s.pub_date ? new Date(s.pub_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
         html += `<li class="archive-item">`;
-        html += `<div class="story-outlet"><span class="outlet-dot" style="background:${s.outlet_color}"></span>${esc(s.outlet_name)}</div>`;
+        html += outletLabel(s);
         html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`;
         html += `<div class="archive-date">${s.author ? esc(s.author) + ' · ' : ''}${date}</div>`;
         html += topicTagsHtml(s.topics);
@@ -1258,6 +1305,174 @@
       html += '</div>';
 
       panel.innerHTML = html;
+    }
+
+    // ─── Media Map ─────────────────────────────────────
+    let mediaMapRendered = false;
+    function renderMediaMap() {
+      if (mediaMapRendered) return;
+      mediaMapRendered = true;
+
+      // Tracked slugs (outlets in our RSS system)
+      const trackedSlugs = new Set((feedData?.outlets || []).map(o => o.slug));
+
+      const categories = [
+        { name: 'Nonprofit & Independent News', outlets: [
+          { name: 'THE CITY', url: 'https://www.thecity.nyc', type: '', tracked: true },
+          { name: 'Gothamist / WNYC', url: 'https://gothamist.com', type: '', tracked: true },
+          { name: 'Hell Gate', url: 'https://hellgatenyc.com', type: '', tracked: true },
+          { name: 'City Limits', url: 'https://citylimits.org', type: '', tracked: true },
+          { name: 'New York Focus', url: 'https://nysfocus.com', type: '', tracked: true },
+          { name: 'Vital City', url: 'https://www.vitalcitynyc.org', type: '', tracked: true },
+          { name: 'Documented', url: 'https://documentedny.com', type: '', tracked: true },
+          { name: 'The Markup', url: 'https://themarkup.org', type: '', tracked: true },
+          { name: 'The Marshall Project', url: 'https://www.themarshallproject.org', type: '', tracked: true },
+          { name: 'ProPublica', url: 'https://www.propublica.org', type: '', tracked: true },
+          { name: 'The Trace', url: 'https://thetrace.org', type: '', tracked: true },
+          { name: 'Bolts', url: 'https://boltsmag.org', type: '', tracked: true },
+          { name: 'City & State NY', url: 'https://www.cityandstateny.com', type: '', tracked: true },
+          { name: 'NY Editorial Board', url: 'https://nyeditorialboard.substack.com', type: '', tracked: true },
+        ]},
+        { name: 'Major Dailies & Magazines', outlets: [
+          { name: 'New York Times', url: 'https://www.nytimes.com/section/nyregion', type: '', tracked: true },
+          { name: 'Wall Street Journal', url: 'https://www.wsj.com', type: '', tracked: true },
+          { name: 'New York Post', url: 'https://nypost.com', type: '', tracked: true },
+          { name: 'Daily News', url: 'https://www.nydailynews.com', type: '', tracked: true },
+          { name: 'New York Magazine', url: 'https://nymag.com/intelligencer', type: '', tracked: true },
+          { name: 'The New Yorker', url: 'https://www.newyorker.com', type: '', tracked: true },
+          { name: 'amNewYork', url: 'https://www.amny.com', type: '', tracked: true },
+          { name: 'Newsday', url: 'https://www.newsday.com', type: '' },
+          { name: 'Crain\u2019s New York', url: 'https://www.crainsnewyork.com', type: '' },
+          { name: 'The Real Deal', url: 'https://therealdeal.com', type: '' },
+          { name: 'Commercial Observer', url: 'https://commercialobserver.com', type: '' },
+        ]},
+        { name: 'Education', outlets: [
+          { name: 'Chalkbeat NYC', url: 'https://www.chalkbeat.org/newyork/', type: '', tracked: true },
+          { name: 'The 74', url: 'https://www.the74million.org', type: '' },
+          { name: 'SchoolBook (WNYC)', url: 'https://www.wnyc.org/series/schoolbook', type: '' },
+        ]},
+        { name: 'Transit & Urbanism', outlets: [
+          { name: 'Streetsblog NYC', url: 'https://nyc.streetsblog.org', type: '', tracked: true },
+          { name: 'Second Avenue Sagas', url: 'https://secondavenuesagas.com', type: '' },
+          { name: 'The Bridge', url: 'https://www.thebridgebk.com', type: '' },
+        ]},
+        { name: 'Policy & Think Tanks', outlets: [
+          { name: 'City Journal', url: 'https://www.city-journal.org', type: '', tracked: true },
+          { name: 'Citizens Budget Commission', url: 'https://cbcny.org', type: '' },
+          { name: 'Center for an Urban Future', url: 'https://nycfuture.org', type: '' },
+          { name: 'Manhattan Institute', url: 'https://manhattan.institute', type: '' },
+          { name: 'Reinvent Albany', url: 'https://reinventalbany.org', type: '' },
+          { name: 'Fiscal Policy Institute', url: 'https://fiscalpolicy.org', type: '' },
+          { name: 'New School Center for NYC Affairs', url: 'https://www.centernyc.org', type: '' },
+          { name: 'Regional Plan Association', url: 'https://rpa.org', type: '' },
+          { name: 'Community Service Society', url: 'https://www.cssny.org', type: '' },
+        ]},
+        { name: 'Television', outlets: [
+          { name: 'NY1', url: 'https://ny1.com', type: '', tracked: true },
+          { name: 'ABC7 NY (WABC)', url: 'https://abc7ny.com', type: '', tracked: true },
+          { name: 'CBS News New York (WCBS)', url: 'https://www.cbsnews.com/newyork/', type: '', tracked: true },
+          { name: 'NBC New York (WNBC)', url: 'https://www.nbcnewyork.com', type: '' },
+          { name: 'FOX 5 NY (WNYW)', url: 'https://www.fox5ny.com', type: '' },
+          { name: 'PIX11 (WPIX)', url: 'https://pix11.com', type: '' },
+          { name: 'Noticias Univision NY', url: 'https://www.univision.com/local/nueva-york-wxtv', type: '' },
+          { name: 'BronxNet', url: 'https://www.bronxnet.org', type: '' },
+          { name: 'Manhattan Neighborhood Network', url: 'https://www.mnn.org', type: '' },
+          { name: 'BRIC TV', url: 'https://www.bricartsmedia.org/bric-tv', type: '' },
+          { name: 'Queens Public Television', url: 'https://www.qptv.org', type: '' },
+          { name: 'Staten Island Community TV', url: 'https://www.sicommunity.tv', type: '' },
+        ]},
+        { name: 'Radio & Podcasts', outlets: [
+          { name: 'WNYC (NPR)', url: 'https://www.wnyc.org', type: 'radio', tracked: true },
+          { name: 'WBAI (Pacifica)', url: 'https://wbai.org', type: 'radio' },
+          { name: '1010 WINS', url: 'https://www.audacy.com/1010wins', type: 'radio' },
+          { name: 'WCBS 880', url: 'https://www.audacy.com/wcbs880', type: 'radio' },
+          { name: 'WQXR', url: 'https://www.wqxr.org', type: 'radio' },
+          { name: 'Hot 97', url: 'https://www.hot97.com', type: 'radio' },
+          { name: 'Brian Lehrer Show', url: 'https://www.wnyc.org/shows/brian-lehrer', type: 'pod' },
+          { name: 'FAQ NYC', url: 'https://faqnyc.com', type: 'pod' },
+          { name: 'Max Politics', url: 'https://www.gothamgazette.com/max-politics-podcast', type: 'pod' },
+        ]},
+        { name: 'Borough & Neighborhood', outlets: [
+          { name: 'Brooklyn Eagle', url: 'https://brooklyneagle.com', type: '', tracked: true },
+          { name: 'Brooklyn Paper', url: 'https://www.brooklynpaper.com', type: '' },
+          { name: 'Bklyner', url: 'https://bklyner.com', type: '' },
+          { name: 'Brownstoner', url: 'https://www.brownstoner.com', type: '' },
+          { name: 'Gotham Gazette', url: 'https://www.gothamgazette.com', type: '' },
+          { name: 'Queens Chronicle', url: 'https://www.qchron.com', type: '' },
+          { name: 'QNS', url: 'https://qns.com', type: '' },
+          { name: 'Bronx Times', url: 'https://www.bxtimes.com', type: '' },
+          { name: 'City Island Current', url: 'https://cityislandcurrent.blogspot.com', type: '' },
+          { name: 'The Wave (Rockaway)', url: 'https://www.rockawave.com', type: '' },
+          { name: 'Staten Island Advance', url: 'https://www.silive.com', type: '' },
+          { name: 'West Side Rag', url: 'https://www.westsiderag.com', type: '' },
+          { name: 'Harlem World', url: 'https://www.harlemworldmagazine.com', type: '' },
+          { name: 'Patch NYC', url: 'https://patch.com/new-york/new-york-city', type: '' },
+          { name: 'The City Voice', url: 'https://thecityvoice.com', type: '' },
+          { name: 'Hunts Point Express', url: 'https://huntspointexpress.com', type: '' },
+          { name: 'Mott Haven Herald', url: 'https://motthavenherald.com', type: '' },
+          { name: 'Norwood News', url: 'https://norwoodnews.org', type: '' },
+          { name: 'Riverdale Press', url: 'https://riverdalepress.com', type: '' },
+          { name: 'LIC Post', url: 'https://licpost.com', type: '' },
+          { name: 'Sunnyside Post', url: 'https://sunnysidepost.com', type: '' },
+          { name: 'Greenpointers', url: 'https://greenpointers.com', type: '' },
+        ]},
+        { name: 'Black Press & Media', outlets: [
+          { name: 'NY Amsterdam News', url: 'https://amsterdamnews.com', type: '', tracked: true },
+          { name: 'Our Time Press', url: 'https://www.ourtimepress.com', type: '' },
+          { name: 'New York Beacon', url: 'https://newyorkbeacon.com', type: '' },
+          { name: 'The Network Journal', url: 'https://tnj.com', type: '' },
+          { name: 'Caribbean Life', url: 'https://www.caribbeanlifenews.com', type: '' },
+          { name: 'Haitian Times', url: 'https://haitiantimes.com', type: '' },
+        ]},
+        { name: 'Spanish-Language & Latino Media', outlets: [
+          { name: 'El Diario', url: 'https://eldiariony.com', type: '', tracked: true },
+          { name: 'Noticias Telemundo NY', url: 'https://www.telemundo47.com', type: '' },
+          { name: 'La Voz Hispana', url: 'https://lavozhispanany.com', type: '' },
+          { name: 'Noticia', url: 'https://www.noticia.do', type: '' },
+          { name: 'Latino Rebels', url: 'https://www.latinorebels.com', type: '' },
+        ]},
+        { name: 'Chinese-Language Media', outlets: [
+          { name: 'World Journal (\u4e16\u754c\u65e5\u5831)', url: 'https://www.worldjournal.com', type: '' },
+          { name: 'Sing Tao Daily (\u661f\u5cf6\u65e5\u5831)', url: 'https://www.singtaousa.com', type: '' },
+          { name: 'China Press (\u50e8\u5831)', url: 'https://www.chinapress.net', type: '' },
+          { name: 'Documented Chinese', url: 'https://documentedny.com/chinese/', type: '' },
+        ]},
+        { name: 'Other Ethnic & Immigrant Media', outlets: [
+          { name: 'The Jewish Week', url: 'https://jewishweek.timesofisrael.com', type: '' },
+          { name: 'The Forward', url: 'https://forward.com', type: '' },
+          { name: 'India Abroad', url: 'https://www.indiaabroadonline.com', type: '' },
+          { name: 'The Korean Daily (\ud55c\uad6d\uc77c\ubcf4)', url: 'https://www.koreatimes.com', type: '' },
+          { name: 'Russian Bazaar', url: 'https://russian-bazaar.com', type: '' },
+          { name: 'The Haitian Times', url: 'https://haitiantimes.com', type: '' },
+          { name: 'Irish Echo', url: 'https://www.irishecho.com', type: '' },
+          { name: 'Il Progresso', url: 'https://www.ilprogresso.com', type: '' },
+          { name: 'Politicheskaya', url: 'https://www.politicheskaya.com', type: '' },
+          { name: 'African Abroad', url: 'https://theafricanabroadmag.com', type: '' },
+        ]},
+        { name: 'Government & Official', outlets: [
+          { name: 'NYC Comptroller', url: 'https://comptroller.nyc.gov', type: '' },
+          { name: 'NYC Council', url: 'https://council.nyc.gov', type: '' },
+          { name: 'NYC Mayor\u2019s Office', url: 'https://www.nyc.gov/office-of-the-mayor', type: '' },
+          { name: 'NY Governor\u2019s Office', url: 'https://www.governor.ny.gov', type: '' },
+          { name: 'NYC Independent Budget Office', url: 'https://www.ibo.nyc.ny.us', type: '' },
+        ]},
+      ];
+
+      let html = `<div class="section-label">NYC Media Map</div>`;
+      html += `<p class="media-map-intro">A working directory of New York City's news outlets, organized by type. Outlets labeled <span class="mm-tracked">TRACKED</span> are actively monitored by NYC News Engine.</p>`;
+
+      for (const cat of categories) {
+        html += `<div class="media-map-category">`;
+        html += `<div class="media-map-category-header">${cat.name}</div>`;
+        html += `<div class="media-map-grid">`;
+        for (const o of cat.outlets) {
+          const tracked = o.tracked ? '<span class="mm-tracked">TRACKED</span>' : '';
+          html += `<div class="media-map-item"><a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.name)}</a>${tracked}</div>`;
+        }
+        html += `</div></div>`;
+      }
+
+      document.getElementById('view-media-map').innerHTML = html;
     }
 
     // ─── Boot ──────────────────────────────────────────

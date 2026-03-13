@@ -8,9 +8,10 @@ const app = express();
 app.use(express.json());
 
 const parser = new Parser({
-  timeout: 12000,
+  timeout: 15000,
   headers: {
     Accept: 'application/rss+xml, application/xml, text/xml, */*',
+    'User-Agent': 'Mozilla/5.0 (compatible; NYCNewsEngine/1.0)',
   },
 });
 
@@ -71,7 +72,7 @@ const OUTLETS = [
   { name: 'New York Magazine', slug: 'nymag', tier: 1, url: 'https://feeds.feedburner.com/nymag/intelligencer', site: 'https://nymag.com/intelligencer', color: '#e11d48', tagline: 'City life, politics & culture' },
   { name: 'The New Yorker', slug: 'new-yorker', tier: 1, url: 'https://www.newyorker.com/feed/news', site: 'https://www.newyorker.com', color: '#1a1a1a', tagline: 'Longform & essays' },
   // Tier 2 — Major local papers & metro coverage
-  { name: 'Daily News', slug: 'daily-news', tier: 2, url: null, site: 'https://www.nydailynews.com', color: '#c53030', tagline: "New York's hometown paper" },
+  { name: 'Daily News', slug: 'daily-news', tier: 2, url: 'https://news.google.com/rss/search?q=site:nydailynews.com+NYC+OR+%22new+york%22+when:3d&hl=en-US&gl=US&ceid=US:en', site: 'https://www.nydailynews.com', color: '#c53030', tagline: "New York's hometown paper" },
   { name: 'NY Post', slug: 'ny-post', tier: 2, url: 'https://nypost.com/feed/', site: 'https://www.nypost.com', color: '#1a202c', tagline: 'Tabloid with reach' },
   { name: 'NY Times - NYC', slug: 'nytimes', tier: 2, url: 'https://rss.nytimes.com/services/xml/rss/nyt/NYRegion.xml', site: 'https://www.nytimes.com/section/nyregion', color: '#1a1a1a', tagline: 'Metro section' },
   { name: 'ProPublica', slug: 'propublica', tier: 2, url: 'https://www.propublica.org/feeds/propublica/main', site: 'https://www.propublica.org', color: '#1a1a1a', tagline: 'Nonprofit investigations' },
@@ -138,7 +139,7 @@ function classifyTopics(title, snippet, categories) {
     }
   }
 
-  return matched.length > 0 ? matched.slice(0, 3) : ['NYC News'];
+  return matched.slice(0, 3);
 }
 
 // ─── Curation scoring ─────────────────────────────────────────────────
