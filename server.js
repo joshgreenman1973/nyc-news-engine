@@ -321,14 +321,18 @@ async function fetchFeed(outlet) {
   }
   try {
     const feed = await parser.parseURL(outlet.url);
-    const items = (feed.items || []).slice(0, 20).map((item) => {
+    let items = (feed.items || []).slice(0, 20).map((item) => {
       const title = item.title || 'Untitled';
       const link = item.link || '';
       const snippet = cleanSnippet(item.contentSnippet || item.content || '');
       const author = item.creator || item['dc:creator'] || item.author || null;
       const rawCats = item.categories || [];
       const cats = rawCats.map((c) => (typeof c === 'string' ? c : (c._ || c.$ || String(c))));
-      const pubDate = item.pubDate || item.isoDate || null;
+      let pubDate = item.pubDate || item.isoDate || null;
+      // Clamp future dates to now — some feeds pre-publish with tomorrow's date
+      if (pubDate && new Date(pubDate).getTime() > Date.now()) {
+        pubDate = new Date().toISOString();
+      }
 
       const topics = classifyTopics(title, snippet, cats);
 
@@ -353,6 +357,22 @@ async function fetchFeed(outlet) {
 
       return story;
     });
+
+    // WNYC's feed mixes news with BBC bulletins, concert listings, and podcast reruns — filter aggressively
+    if (outlet.slug === 'wnyc') {
+      const junkPatterns = [
+        /^\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}\s+GMT/i,  // BBC World Service timestamps ("13/03/2026 02:01 GMT")
+        /\bat\s+92NY\b/i,                                // 92NY concert listings
+        /gig-alerts\.simplecast/i,                        // Concert alert links
+        /\bBBC\b/i,                                       // All BBC content
+        /\bPBS\s+News\s+Hour\b/i,                         // PBS national broadcast
+        /\bLatest\s+Newscast\s+From\b/i,                  // Generic WNYC newscast placeholder
+      ];
+      items = items.filter(s => {
+        const combined = `${s.title} ${s.link}`;
+        return !junkPatterns.some(p => p.test(combined));
+      });
+    }
 
     // For national outlets, filter to NYC-relevant stories only
     const nycOnlyFilter = ['propublica', 'bolts', 'the-trace', 'the-markup', 'nymag', 'new-yorker', 'wsj', 'ny-post'];
