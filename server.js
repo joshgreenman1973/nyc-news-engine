@@ -172,6 +172,10 @@ const DEPTH_SIGNALS = [
   'city hall', 'Albany', 'state legislature',
   'reform', 'overhaul', 'effectiveness', 'program', 'initiative',
   'disparity', 'inequality', 'equity',
+  'poverty', 'low-income', 'cost of living', 'affordability',
+  'mayor', 'governor', 'comptroller', 'public advocate', 'speaker',
+  'political', 'power broker', 'corruption', 'ethics',
+  'census', 'demographic', 'population',
 ];
 
 const SHALLOW_SIGNALS = [
@@ -212,8 +216,9 @@ function scoreStory(item, outlet) {
   let score = 0;
   const combined = `${item.title} ${item.snippet || ''}`.toLowerCase();
 
-  if (outlet.tier === 1) score += 15;
-  else if (outlet.tier === 2) score += 5;
+  if (outlet.tier === 1) score += 12;
+  else if (outlet.tier === 2) score += 8;
+  else if (outlet.tier === 3) score += 2;
 
   // Count depth signal hits — each hit adds points, and multiple hits compound
   let depthHits = 0;
@@ -235,7 +240,7 @@ function scoreStory(item, outlet) {
   // NYT nyregion, Gothamist, City Limits etc. — check if URL indicates local policy beat
   const link = (item.link || '').toLowerCase();
   if (link.includes('/nyregion/') || link.includes('/nyc/') || link.includes('/new-york/')) {
-    score += 3;
+    score += 6;
   }
 
   const titleWords = (item.title || '').split(/\s+/).length;
