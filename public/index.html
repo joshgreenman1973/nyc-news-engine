@@ -411,16 +411,19 @@
       border: 1px solid var(--border);
     }
     .compact-item {
-      padding: 0.45rem 0; break-inside: avoid;
+      padding: 0.55rem 0; break-inside: avoid;
       border-bottom: 1px solid var(--border); font-size: 0.88rem;
+      line-height: 1.45;
     }
     .compact-item:last-child { border-bottom: none; }
     .compact-item a { color: var(--text); text-decoration: none; transition: color 0.15s; }
     .compact-item a:hover { color: var(--accent); }
     .compact-item a:visited { color: #666; }
     .compact-item .compact-outlet {
-      font-family: var(--sans); font-size: 0.6rem; font-weight: 700;
-      color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em;
+      font-family: var(--sans); font-size: 0.62rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      display: inline-block; min-width: 0; margin-right: 0.35rem;
+      vertical-align: baseline;
     }
 
     /* ─── By-outlet view ─── */
@@ -1057,7 +1060,7 @@
         html += '<ul class="compact-list">';
         for (const s of standards) {
           html += `<li class="compact-item">`;
-          html += `<span class="compact-outlet" style="color:${s.outletColor}">${esc(s.outlet)}</span> `;
+          html += `<span class="compact-outlet" style="color:${lightenDotColor(s.outletColor)}">${esc(s.outlet)}</span> `;
           html += `<a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a>${translateBtn(s.title, s.link)}`;
           html += `</li>`;
         }
