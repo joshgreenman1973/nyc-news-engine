@@ -237,11 +237,24 @@ function scoreStory(item, outlet) {
     if (combined.includes(s.toLowerCase())) { score -= 20; break; }
   }
 
-  // NYT nyregion, Gothamist, City Limits etc. — check if URL indicates local policy beat
+  // NYC-locality bonus — reward stories explicitly about NYC governance & place
   const link = (item.link || '').toLowerCase();
   if (link.includes('/nyregion/') || link.includes('/nyc/') || link.includes('/new-york/')) {
-    score += 6;
+    score += 4;
   }
+  const NYC_LOCALITY = [
+    'new york city', 'nyc', 'city hall', 'city council', 'albany',
+    'brooklyn', 'manhattan', 'queens', 'bronx', 'staten island',
+    'nypd', 'mta', 'nycha', 'rikers', 'adams', 'hochul',
+    'de blasio', 'comptroller', 'public advocate',
+  ];
+  let nycHits = 0;
+  for (const loc of NYC_LOCALITY) {
+    if (combined.includes(loc)) nycHits++;
+  }
+  if (nycHits >= 3) score += 8;
+  else if (nycHits >= 2) score += 5;
+  else if (nycHits >= 1) score += 2;
 
   const titleWords = (item.title || '').split(/\s+/).length;
   if (titleWords >= 8 && titleWords <= 20) score += 4;
