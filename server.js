@@ -143,39 +143,48 @@ function classifyTopics(title, snippet, categories) {
 }
 
 // ─── Curation scoring ─────────────────────────────────────────────────
+// Heavy policy topics — these are the serious subjects that define NYC public policy discourse
+const POLICY_TOPICS = [
+  'affordable housing', 'public health', 'criminal justice', 'education policy',
+  'homelessness', 'homeless', 'eviction', 'tenant', 'shelter system', 'shelter',
+  'mental health', 'outreach', 'social worker', 'social service', 'case manager',
+  'supportive housing', 'housing first', 'permanent housing', 'public housing',
+  'policing', 'surveillance', 'civil rights', 'civil liberties',
+  'child welfare', 'foster care', 'juvenile justice',
+  'opioid', 'fentanyl', 'overdose', 'harm reduction',
+  'reentry', 'recidivism', 'parole', 'probation', 'rikers',
+  'food insecurity', 'food pantry', 'snap', 'benefits',
+  'disability', 'medicaid', 'health care', 'hospital',
+  'poverty', 'low-income', 'cost of living', 'affordability',
+  'migrant', 'immigration', 'asylum',
+  'transit', 'infrastructure', 'congestion pricing',
+  'climate', 'zoning', 'rezoning', 'land use',
+  'disparity', 'inequality', 'equity',
+  'corruption', 'ethics', 'misconduct',
+  'policy', 'legislation', 'budget', 'regulation',
+  'reform', 'overhaul',
+  'workforce', 'job training', 'wage',
+  'NYCHA', 'MTA',
+];
+
+// Reporting-depth signals — indicate investigative or analytical work
 const DEPTH_SIGNALS = [
-  'investigation', 'investigat', 'exclusive', 'obtained', 'documents show',
+  'investigation', 'investigat', 'obtained', 'documents show',
   'records reveal', 'data shows', 'data analysis', 'FOIA', 'FOIL',
   'exposed', 'uncovered', 'accountability',
   'analysis', 'explained', 'explainer', 'what you need to know',
   'how it works', 'what it means', 'deep dive', 'in depth',
   'behind the', 'inside the', 'the story behind',
-  'policy', 'legislation', 'budget', 'zoning', 'regulation',
-  'affordable housing', 'public health', 'criminal justice',
-  'education policy', 'transit', 'infrastructure', 'climate',
-  'migrant', 'immigration', 'asylum', 'shelter system', 'shelter',
-  'mental health', 'homelessness', 'homeless', 'eviction', 'tenant',
-  'outreach', 'social worker', 'social service', 'case manager',
-  'supportive housing', 'housing first', 'permanent housing',
-  'policing', 'surveillance', 'civil rights', 'civil liberties',
-  'public housing', 'NYCHA', 'MTA', 'congestion pricing',
-  'child welfare', 'foster care', 'juvenile justice',
-  'opioid', 'fentanyl', 'overdose', 'harm reduction',
-  'reentry', 'recidivism', 'parole', 'probation', 'rikers',
-  'workforce', 'job training', 'wage', 'labor',
-  'food insecurity', 'food pantry', 'snap', 'benefits',
-  'disability', 'medicaid', 'health care', 'hospital',
   'months-long', 'year-long', 'series', 'part 1', 'part 2',
   'special report', 'long read', 'feature',
   'first-person', 'oral history', 'profile',
+  'exclusive',
   'community', 'neighborhood', 'borough', 'council',
   'city hall', 'Albany', 'state legislature',
-  'reform', 'overhaul', 'effectiveness', 'program', 'initiative',
-  'disparity', 'inequality', 'equity',
-  'poverty', 'low-income', 'cost of living', 'affordability',
   'mayor', 'governor', 'comptroller', 'public advocate', 'speaker',
-  'political', 'power broker', 'corruption', 'ethics',
+  'political', 'power broker',
   'census', 'demographic', 'population',
+  'effectiveness', 'program', 'initiative', 'labor',
 ];
 
 const SHALLOW_SIGNALS = [
@@ -220,15 +229,23 @@ function scoreStory(item, outlet) {
   else if (outlet.tier === 2) score += 8;
   else if (outlet.tier === 3) score += 2;
 
-  // Count depth signal hits — each hit adds points, and multiple hits compound
+  // Policy topic hits — serious subjects get heavy weight
+  let policyHits = 0;
+  for (const s of POLICY_TOPICS) {
+    if (combined.includes(s.toLowerCase())) { score += 8; policyHits++; }
+  }
+  // Compound bonus: stories hitting multiple policy topics are deeply relevant
+  if (policyHits >= 4) score += 15;
+  else if (policyHits >= 3) score += 10;
+  else if (policyHits >= 2) score += 6;
+
+  // Reporting-depth signals — lighter weight, reward craft not just topic
   let depthHits = 0;
   for (const s of DEPTH_SIGNALS) {
-    if (combined.includes(s.toLowerCase())) { score += 6; depthHits++; }
+    if (combined.includes(s.toLowerCase())) { score += 4; depthHits++; }
   }
-  // Compound bonus: stories hitting 3+ policy signals are likely deeply relevant
-  if (depthHits >= 4) score += 12;
-  else if (depthHits >= 3) score += 8;
-  else if (depthHits >= 2) score += 4;
+  if (depthHits >= 3) score += 5;
+  else if (depthHits >= 2) score += 3;
 
   for (const s of SHALLOW_SIGNALS) {
     if (combined.includes(s.toLowerCase())) score -= 12;
@@ -277,9 +294,9 @@ function scoreStory(item, outlet) {
 }
 
 function classifyRank(score) {
-  if (score >= 28) return 'essential';
-  if (score >= 18) return 'notable';
-  if (score >= 10) return 'standard';
+  if (score >= 35) return 'essential';
+  if (score >= 22) return 'notable';
+  if (score >= 12) return 'standard';
   return 'brief';
 }
 
