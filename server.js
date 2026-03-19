@@ -374,6 +374,11 @@ function cleanSnippet(text) {
   clean = clean.replace(/\s*\[?\.\.\.\]?\s*The post\s+.+$/i, '');
   clean = clean.replace(/\s*(Continue reading|Read more|Click here).*$/i, '');
 
+  // Strip photo/image captions that lead snippets
+  clean = clean.replace(/^(File photo|Photo|Image|Video|Listen|Watch)(\s+(from|by|courtesy|of|via|credit|:)).*?[.!]\s*/i, '');
+  clean = clean.replace(/^(A|An)\s+(file\s+)?photo\s+(from|of|showing).*?[.!]\s*/i, '');
+  clean = clean.replace(/^(Credit|Getty|AP|Reuters|EPA|AFP)[^.]*[.]\s*/i, '');
+
   return clean.substring(0, 350);
 }
 

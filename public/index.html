@@ -266,9 +266,10 @@
     }
     .story-title a {
       color: var(--link); text-decoration: none; transition: color 0.15s;
+      border-bottom: 1px solid rgba(255,124,83,0.3);
     }
-    .story-title a:hover { color: var(--link-hover); }
-    .story-title a:visited { color: #5a5a6a; }
+    .story-title a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+    .story-title a:visited { color: #8a8a9a; border-bottom-color: rgba(138,138,154,0.25); }
 
     /* ─── Snippet ─── */
     .story-snippet { font-size: 0.9rem; color: var(--muted); line-height: 1.55; font-family: var(--serif); }
@@ -416,9 +417,9 @@
       line-height: 1.45;
     }
     .compact-item:last-child { border-bottom: none; }
-    .compact-item a { color: var(--text); text-decoration: none; transition: color 0.15s; }
-    .compact-item a:hover { color: var(--accent); }
-    .compact-item a:visited { color: #666; }
+    .compact-item a { color: var(--text); text-decoration: none; transition: color 0.15s; border-bottom: 1px solid rgba(255,124,83,0.2); }
+    .compact-item a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+    .compact-item a:visited { color: #666; border-bottom-color: transparent; }
     .compact-item .compact-outlet {
       font-family: var(--sans); font-size: 0.62rem; font-weight: 700;
       text-transform: uppercase; letter-spacing: 0.04em;
