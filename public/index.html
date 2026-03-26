@@ -40,7 +40,43 @@
       padding: 2.2rem 0 1.4rem;
     }
 
-    .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+    .container { max-width: 1320px; margin: 0 auto; padding: 0 1.5rem; }
+
+    /* ─── Two-column layout for curated view ─── */
+    .curated-layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 2rem;
+      align-items: start;
+    }
+    .curated-main { min-width: 0; }
+    .curated-sidebar {
+      position: sticky;
+      top: 48px;
+      max-height: calc(100vh - 60px);
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .curated-sidebar::-webkit-scrollbar { width: 4px; }
+    .curated-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .curated-sidebar::-webkit-scrollbar-track { background: transparent; }
+
+    .sidebar-section { margin-bottom: 1.5rem; }
+    .sidebar-section .section-label { margin-top: 0; font-size: 0.65rem; margin-bottom: 0.8rem; }
+    .sidebar-section:first-child .section-label { margin-top: 0; }
+
+    /* Below the fold: full-width sections after the two-column area */
+    .curated-below { margin-top: 2rem; }
+
+    @media (max-width: 1100px) {
+      .curated-layout { grid-template-columns: 1fr; }
+      .curated-sidebar {
+        position: static;
+        max-height: none;
+        overflow-y: visible;
+      }
+    }
 
     .header-inner {
       display: flex;
@@ -677,11 +713,28 @@
       transform: scale(0.95) translateY(8px);
     }
 
+    /* ─── Sidebar-compact variants ─── */
+    .sidebar-section .headlines-item { padding: 0.5rem 1rem; gap: 0.5rem; }
+    .sidebar-section .headlines-item .story-outlet { width: auto; min-width: auto; }
+    .sidebar-section .headlines-item .story-title { font-size: 0.82rem; }
+
+    .sidebar-section .analysis-item { padding: 0.7rem 1rem; grid-template-columns: 1fr; gap: 0.4rem; }
+    .sidebar-section .analysis-left .story-title { font-size: 0.88rem; }
+    .sidebar-section .analysis-left .story-snippet { display: none; }
+    .sidebar-section .analysis-tags { padding-top: 0; }
+
+    .sidebar-section .podcast-item { padding: 0.5rem 1rem; gap: 0.4rem; }
+    .sidebar-section .podcast-name { width: auto; min-width: auto; font-size: 0.62rem; }
+    .sidebar-section .podcast-item .story-title { font-size: 0.8rem; }
+
+    .sidebar-section .civic-item { padding: 0.5rem 1rem; }
+    .sidebar-section .civic-item .story-title { font-size: 0.8rem; }
+
     /* ─── Loading ─── */
     .loading-state { text-align: center; padding: 4rem 2rem; color: var(--muted); font-style: italic; }
 
     /* ─── Mobile ─── */
-    @media (max-width: 900px) {
+    @media (max-width: 1100px) {
       .story-grid { grid-template-columns: repeat(2, 1fr); }
     }
 
@@ -955,109 +1008,124 @@
     function renderCurated(data) {
       const { curated } = data;
       if (!curated) return;
-      let html = '';
 
       const essentials = curated.essential.filter(matchesTopic);
       const analysisItems = (curated.analysis || []).filter(matchesTopic);
       const notables = curated.notable.filter(matchesTopic);
       const standards = curated.standard.filter(matchesTopic);
-
-      // Lead story + grid — store essentials for re-sort toggle
-      if (essentials.length > 0) {
-        html += `<div class="section-label"><span class="section-icon">&#9733;</span> Today's Picks <span class="tooltip-wrap"><span class="tooltip-icon">?</span><div class="tooltip-bubble">Stories are scored on <strong>depth of reporting</strong> (investigative signals, expert sourcing, data), <strong>policy relevance</strong> (NYC governance, housing, transit, etc.), <strong>outlet independence</strong> (local nonprofits weighted over wire services), and <strong>freshness</strong> (big boost for stories under 3 hours old, tapering out at 12h). Only stories from the last 36 hours qualify. Max 3 per outlet to ensure variety.</div></span>`;
-        html += `<button class="sort-toggle" id="picks-sort-toggle" onclick="togglePicksSort()"><span class="toggle-icon">↕</span> Newest first</button>`;
-        html += `</div>`;
-        html += `<div class="picks-container" id="picks-container">`;
-        html += renderPicksCards(essentials, false);
-        html += `</div>`;
-      }
+      const headlineItems = (curated.headlines || []).filter(matchesTopic);
+      const podcastItems = curated.podcasts || [];
+      const civicItems = curated.civicReports || [];
 
       // Store essentials globally for re-sort
       window._essentials = essentials;
 
-      // What's Grabbing Headlines
-      const headlineItems = curated.headlines || [];
+      // ── Main column ──
+      let main = '';
+
+      if (essentials.length > 0) {
+        main += `<div class="section-label"><span class="section-icon">&#9733;</span> Today's picks <span class="tooltip-wrap"><span class="tooltip-icon">?</span><div class="tooltip-bubble">Stories are scored on <strong>depth of reporting</strong> (investigative signals, expert sourcing, data), <strong>policy relevance</strong> (NYC governance, housing, transit, etc.), <strong>outlet independence</strong> (local nonprofits weighted over wire services), and <strong>freshness</strong> (big boost for stories under 3 hours old, tapering out at 12h). Only stories from the last 36 hours qualify. Max 3 per outlet to ensure variety.</div></span>`;
+        main += `<button class="sort-toggle" id="picks-sort-toggle" onclick="togglePicksSort()"><span class="toggle-icon">↕</span> Newest first</button>`;
+        main += `</div>`;
+        main += `<div class="picks-container" id="picks-container">`;
+        main += renderPicksCards(essentials, false);
+        main += `</div>`;
+      }
+
+      // Notable (in main column, below picks)
+      if (notables.length > 0) {
+        main += `<div class="section-label"><span class="section-icon">&#9679;</span> Also notable</div>`;
+        main += '<ul class="notable-list">';
+        for (const s of notables) {
+          main += `<li class="notable-item">`;
+          main += `<div>`;
+          main += outletLabel(s);
+          main += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a>${translateBtn(s.title, s.link)}</div>`;
+          main += topicTagsHtml(s.topics);
+          main += `</div>`;
+          main += `<div class="right-col">${s.author ? esc(s.author) + '<br>' : ''}${timeAgo(s.pubDate)}</div>`;
+          main += `</li>`;
+        }
+        main += '</ul>';
+      }
+
+      // ── Sidebar ──
+      let sidebar = '';
+
+      // Headlines
       if (headlineItems.length > 0) {
-        html += `<div class="section-label"><span class="section-icon">&#9889;</span> What's Grabbing Headlines</div>`;
-        html += '<div class="headlines-box">';
+        sidebar += `<div class="sidebar-section">`;
+        sidebar += `<div class="section-label"><span class="section-icon">&#9889;</span> Headlines</div>`;
+        sidebar += '<div class="headlines-box">';
         for (const s of headlineItems) {
-          html += `<div class="headlines-item">`;
-          html += outletLabel(s);
-          html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`;
-          html += `</div>`;
+          sidebar += `<div class="headlines-item">`;
+          sidebar += outletLabel(s);
+          sidebar += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`;
+          sidebar += `</div>`;
         }
-        html += '</div>';
-      }
-
-      // NYC Podcasts
-      const podcastItems = curated.podcasts || [];
-      if (podcastItems.length > 0) {
-        html += `<div class="section-label"><span class="section-icon">&#127911;</span> NYC Podcasts — Latest</div>`;
-        html += '<div class="podcast-box">';
-        for (const p of podcastItems) {
-          html += `<div class="podcast-item">`;
-          html += `<span class="podcast-name"><span class="pod-dot" style="background:${p.podcastColor}"></span>${esc(p.podcast)}</span>`;
-          html += `<div class="story-title"><a href="${esc(p.link)}" target="_blank" rel="noopener">${esc(p.title)}</a></div>`;
-          html += `</div>`;
-        }
-        html += '</div>';
-      }
-
-      // Civic / Watchdog Reports
-      const civicItems = curated.civicReports || [];
-      if (civicItems.length > 0) {
-        html += `<div class="section-label"><span class="section-icon">&#127963;</span> Policy & Watchdog Reports</div>`;
-        html += '<div class="civic-box">';
-        for (const c of civicItems) {
-          html += `<div class="civic-item">`;
-          html += `<div class="civic-org"><span class="civic-dot" style="background:${c.orgColor}"></span><span style="color:${c.orgColor}">${esc(c.org)}</span></div>`;
-          html += `<div class="story-title"><a href="${esc(c.link)}" target="_blank" rel="noopener">${esc(c.title)}</a></div>`;
-          if (c.pubDate) html += `<div class="civic-time">${timeAgo(c.pubDate)}</div>`;
-          html += `</div>`;
-        }
-        html += '</div>';
+        sidebar += '</div></div>';
       }
 
       // Analysis & Commentary
       if (analysisItems.length > 0) {
-        html += `<div class="section-label"><span class="section-icon">&#128270;</span> Analysis & Commentary</div>`;
-        html += '<div class="analysis-section">';
+        sidebar += `<div class="sidebar-section">`;
+        sidebar += `<div class="section-label"><span class="section-icon">&#128270;</span> Analysis & commentary</div>`;
+        sidebar += '<div class="analysis-section">';
         for (const s of analysisItems) {
-          html += `<div class="analysis-item">`;
-          html += `<div class="analysis-left">`;
-          html += outletLabel(s);
-          html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a>${translateBtn(s.title, s.link)}</div>`;
-          if (s.snippet) html += `<div class="story-snippet">${esc(s.snippet)}</div>`;
-          html += storyMeta(s);
-          html += `</div>`;
-          html += `<div class="analysis-tags">`;
-          html += topicTagsHtml(s.topics);
-          html += `</div>`;
-          html += `</div>`;
+          sidebar += `<div class="analysis-item">`;
+          sidebar += `<div class="analysis-left">`;
+          sidebar += outletLabel(s);
+          sidebar += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a>${translateBtn(s.title, s.link)}</div>`;
+          if (s.snippet) sidebar += `<div class="story-snippet">${esc(s.snippet)}</div>`;
+          sidebar += storyMeta(s);
+          sidebar += `</div>`;
+          sidebar += `<div class="analysis-tags">`;
+          sidebar += topicTagsHtml(s.topics);
+          sidebar += `</div>`;
+          sidebar += `</div>`;
         }
-        html += '</div>';
+        sidebar += '</div></div>';
       }
 
-      // Notable
-      if (notables.length > 0) {
-        html += `<div class="section-label"><span class="section-icon">&#9679;</span> Also Notable</div>`;
-        html += '<ul class="notable-list">';
-        for (const s of notables) {
-          html += `<li class="notable-item">`;
-          html += `<div>`;
-          html += outletLabel(s);
-          html += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a>${translateBtn(s.title, s.link)}</div>`;
-          html += topicTagsHtml(s.topics);
-          html += `</div>`;
-          html += `<div class="right-col">${s.author ? esc(s.author) + '<br>' : ''}${timeAgo(s.pubDate)}</div>`;
-          html += `</li>`;
+      // Podcasts
+      if (podcastItems.length > 0) {
+        sidebar += `<div class="sidebar-section">`;
+        sidebar += `<div class="section-label"><span class="section-icon">&#127911;</span> NYC podcasts</div>`;
+        sidebar += '<div class="podcast-box">';
+        for (const p of podcastItems) {
+          sidebar += `<div class="podcast-item">`;
+          sidebar += `<span class="podcast-name"><span class="pod-dot" style="background:${p.podcastColor}"></span>${esc(p.podcast)}</span>`;
+          sidebar += `<div class="story-title"><a href="${esc(p.link)}" target="_blank" rel="noopener">${esc(p.title)}</a></div>`;
+          sidebar += `</div>`;
         }
-        html += '</ul>';
+        sidebar += '</div></div>';
       }
 
-      // Standard
+      // Civic / Watchdog Reports
+      if (civicItems.length > 0) {
+        sidebar += `<div class="sidebar-section">`;
+        sidebar += `<div class="section-label"><span class="section-icon">&#127963;</span> Policy & watchdog reports</div>`;
+        sidebar += '<div class="civic-box">';
+        for (const c of civicItems) {
+          sidebar += `<div class="civic-item">`;
+          sidebar += `<div class="civic-org"><span class="civic-dot" style="background:${c.orgColor}"></span><span style="color:${c.orgColor}">${esc(c.org)}</span></div>`;
+          sidebar += `<div class="story-title"><a href="${esc(c.link)}" target="_blank" rel="noopener">${esc(c.title)}</a></div>`;
+          if (c.pubDate) sidebar += `<div class="civic-time">${timeAgo(c.pubDate)}</div>`;
+          sidebar += `</div>`;
+        }
+        sidebar += '</div></div>';
+      }
+
+      // ── Assemble two-column layout ──
+      let html = `<div class="curated-layout">`;
+      html += `<div class="curated-main">${main}</div>`;
+      html += `<div class="curated-sidebar">${sidebar}</div>`;
+      html += `</div>`;
+
+      // Below-the-fold: full-width standard stories
       if (standards.length > 0) {
-        html += `<div class="section-label"><span class="section-icon">&#8942;</span> More From NYC Newsrooms</div>`;
+        html += `<div class="curated-below">`;
+        html += `<div class="section-label"><span class="section-icon">&#8942;</span> More from NYC newsrooms</div>`;
         html += '<ul class="compact-list">';
         for (const s of standards) {
           html += `<li class="compact-item">`;
@@ -1065,7 +1133,7 @@
           html += `<a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a>${translateBtn(s.title, s.link)}`;
           html += `</li>`;
         }
-        html += '</ul>';
+        html += '</ul></div>';
       }
 
       document.getElementById('view-curated').innerHTML = html;
@@ -1359,6 +1427,22 @@
           { name: 'Streetsblog NYC', url: 'https://nyc.streetsblog.org', type: '', tracked: true },
           { name: 'Second Avenue Sagas', url: 'https://secondavenuesagas.com', type: '' },
           { name: 'The Bridge', url: 'https://www.thebridgebk.com', type: '' },
+        ]},
+        { name: 'Policy Newsletters & Substacks', outlets: [
+          { name: 'NYC Politics 101', url: 'https://nycpolitics101.substack.com', type: '', tracked: true },
+          { name: 'NYC Policy Forum', url: 'https://nycpolicyforum.substack.com', type: '', tracked: true },
+          { name: 'Maximum New York', url: 'https://www.maximumnewyork.com', type: '', tracked: true },
+          { name: 'Abundance New York', url: 'https://abundanceny.substack.com', type: '', tracked: true },
+          { name: 'NYCuriosity', url: 'https://nycuriosity.substack.com', type: '', tracked: true },
+          { name: 'Sidewalk Chorus', url: 'https://www.sidewalkchorus.com', type: '', tracked: true },
+          { name: 'City Journal (Substack)', url: 'https://cityjournal.substack.com', type: '', tracked: true },
+          { name: 'The Bigger Apple', url: 'https://thebiggerapple.manhattan.institute', type: '', tracked: true },
+          { name: 'Political Currents (Ross Barkan)', url: 'https://rosselliotbarkan.com', type: '', tracked: true },
+          { name: 'Metro Mosaic', url: 'https://metromosaic.substack.com', type: '', tracked: true },
+          { name: 'Gotham Gazette', url: 'https://www.gothamgazette.com', type: '', tracked: true },
+          { name: 'NY Editorial Board', url: 'https://nyeditorialboard.substack.com', type: '', tracked: true },
+          { name: 'Politico NY Playbook', url: 'https://www.politico.com/new-york', type: '' },
+          { name: 'City & State First Read', url: 'https://www.cityandstateny.com', type: '' },
         ]},
         { name: 'Policy & Think Tanks', outlets: [
           { name: 'City Journal', url: 'https://www.city-journal.org', type: '', tracked: true },

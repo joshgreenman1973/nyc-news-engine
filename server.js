@@ -93,6 +93,18 @@ const OUTLETS = [
   // Tier 1 — Commentary & interviews
   { name: 'City Journal', slug: 'city-journal', tier: 1, url: 'https://news.google.com/rss/search?q=site:city-journal.org+NYC+OR+%22new+york%22+when:14d&hl=en-US&gl=US&ceid=US:en', site: 'https://www.city-journal.org', color: '#1e3a5f', tagline: 'Manhattan Institute urban policy' },
   { name: 'NY Editorial Board', slug: 'ny-editorial-board', tier: 1, url: 'https://nyeditorialboard.substack.com/feed', site: 'https://nyeditorialboard.substack.com', color: '#b45309', tagline: 'NYC interviews & commentary' },
+  // Tier 1 — NYC policy newsletters (Substack & others)
+  { name: 'NYC Politics 101', slug: 'nyc-politics-101', tier: 1, url: 'https://nycpolitics101.substack.com/feed', site: 'https://nycpolitics101.substack.com', color: '#6366f1', tagline: 'State & local policy education' },
+  { name: 'NYC Policy Forum', slug: 'nyc-policy-forum', tier: 1, url: 'https://nycpolicyforum.substack.com/feed', site: 'https://nycpolicyforum.substack.com', color: '#0284c7', tagline: 'Expert policy debate & commentary' },
+  { name: 'Maximum New York', slug: 'maximum-ny', tier: 1, url: 'https://www.maximumnewyork.com/feed', site: 'https://www.maximumnewyork.com', color: '#f59e0b', tagline: 'Pro-growth NYC housing & development' },
+  { name: 'Abundance New York', slug: 'abundance-ny', tier: 1, url: 'https://abundanceny.substack.com/feed', site: 'https://abundanceny.substack.com', color: '#10b981', tagline: 'Building more in New York' },
+  { name: 'NYCuriosity', slug: 'nycuriosity', tier: 1, url: 'https://nycuriosity.substack.com/feed', site: 'https://nycuriosity.substack.com', color: '#8b5cf6', tagline: 'NYC civic engagement & community boards' },
+  { name: 'Sidewalk Chorus', slug: 'sidewalk-chorus', tier: 1, url: 'https://www.sidewalkchorus.com/feed', site: 'https://www.sidewalkchorus.com', color: '#ec4899', tagline: 'NYC neighborhoods & urban life' },
+  { name: 'City Journal (Substack)', slug: 'city-journal-sub', tier: 1, url: 'https://cityjournal.substack.com/feed', site: 'https://cityjournal.substack.com', color: '#1e3a5f', tagline: 'Manhattan Institute policy newsletter' },
+  { name: 'The Bigger Apple', slug: 'bigger-apple', tier: 1, url: 'https://thebiggerapple.manhattan.institute/feed', site: 'https://thebiggerapple.manhattan.institute', color: '#dc2626', tagline: 'Manhattan Institute weekly NYC policy brief' },
+  { name: 'Political Currents', slug: 'political-currents', tier: 1, url: 'https://rosselliotbarkan.com/feed', site: 'https://rosselliotbarkan.com', color: '#7c3aed', tagline: 'Ross Barkan on NYC politics & culture' },
+  { name: 'Metro Mosaic', slug: 'metro-mosaic', tier: 1, url: 'https://metromosaic.substack.com/feed', site: 'https://metromosaic.substack.com', color: '#0891b2', tagline: 'NYC housing & urban policy analysis' },
+  { name: 'Gotham Gazette', slug: 'gotham-gazette', tier: 1, url: 'https://www.gothamgazette.com/rss', site: 'https://www.gothamgazette.com', color: '#b45309', tagline: 'Nonpartisan NYC government & policy' },
 ];
 
 // ─── Civic / watchdog organizations (separate from news outlets) ──────
@@ -302,7 +314,7 @@ function classifyRank(score) {
 
 // ─── Analysis / commentary detection ──────────────────────────────────
 // Outlets whose content is almost entirely analysis/commentary
-const ANALYSIS_OUTLETS = ['vital-city', 'city-journal'];
+const ANALYSIS_OUTLETS = ['vital-city', 'city-journal', 'city-journal-sub', 'nyc-policy-forum', 'nyc-politics-101', 'maximum-ny', 'abundance-ny', 'nycuriosity', 'sidewalk-chorus', 'bigger-apple', 'political-currents', 'metro-mosaic', 'gotham-gazette'];
 
 // Signals in title/snippet/categories that indicate explainer, analysis, op-ed, commentary
 const ANALYSIS_SIGNALS = [
