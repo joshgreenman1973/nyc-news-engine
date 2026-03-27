@@ -314,7 +314,10 @@ function classifyRank(score) {
 
 // ─── Analysis / commentary detection ──────────────────────────────────
 // Outlets whose content is almost entirely analysis/commentary
-const ANALYSIS_OUTLETS = ['vital-city', 'city-journal', 'city-journal-sub', 'nyc-policy-forum', 'nyc-politics-101', 'maximum-ny', 'abundance-ny', 'nycuriosity', 'sidewalk-chorus', 'bigger-apple', 'political-currents', 'metro-mosaic', 'gotham-gazette'];
+const ANALYSIS_OUTLETS = ['vital-city', 'city-journal', 'city-journal-sub', 'nyc-policy-forum', 'nyc-politics-101', 'maximum-ny', 'abundance-ny', 'nycuriosity', 'sidewalk-chorus', 'bigger-apple', 'political-currents', 'metro-mosaic', 'gotham-gazette', 'ny-editorial-board'];
+
+// Newsletter / Substack outlets — shown in their own sidebar section
+const NEWSLETTER_SLUGS = ['nyc-politics-101', 'nyc-policy-forum', 'maximum-ny', 'abundance-ny', 'nycuriosity', 'sidewalk-chorus', 'city-journal-sub', 'bigger-apple', 'political-currents', 'metro-mosaic', 'ny-editorial-board'];
 
 // Signals in title/snippet/categories that indicate explainer, analysis, op-ed, commentary
 const ANALYSIS_SIGNALS = [
@@ -560,9 +563,13 @@ async function _doFetchAllFeeds(now) {
   const analysisPool = deduped.filter((s) => s.isAnalysis && s.score >= 15);
   const newsPool = deduped.filter((s) => !s.isAnalysis);
 
-  // Also grab high-scoring analysis that didn't self-identify but comes from analysis outlets
-  const analysis = analysisPool.slice(0, 10);
-  const analysisIds = new Set(analysis.map((s) => s.id));
+  // Split newsletters out of analysis pool into their own section
+  const newsletterPool = analysisPool.filter((s) => NEWSLETTER_SLUGS.includes(s.outletSlug));
+  const pureAnalysisPool = analysisPool.filter((s) => !NEWSLETTER_SLUGS.includes(s.outletSlug));
+
+  const newsletters = newsletterPool.slice(0, 8);
+  const analysis = pureAnalysisPool.slice(0, 10);
+  const analysisIds = new Set([...analysis.map((s) => s.id), ...newsletters.map((s) => s.id)]);
 
   // Today's Picks: only stories from last 36 hours
   // Sort candidates by a display score that heavily rewards freshness
@@ -713,11 +720,11 @@ async function _doFetchAllFeeds(now) {
     .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
     .slice(0, 80);
 
-  curatedCache = { essential, notable, standard, analysis, headlines, podcasts, civicReports: filteredCivic, latest, totalScored: deduped.length, topicCounts };
+  curatedCache = { essential, notable, standard, analysis, newsletters, headlines, podcasts, civicReports: filteredCivic, latest, totalScored: deduped.length, topicCounts };
   feedCache = feeds;
   lastFetchTime = now;
 
-  console.log(`  Curated: ${essential.length} essential, ${analysis.length} analysis, ${notable.length} notable out of ${deduped.length} stories`);
+  console.log(`  Curated: ${essential.length} essential, ${analysis.length} analysis, ${newsletters.length} newsletters, ${notable.length} notable out of ${deduped.length} stories`);
   return { feeds, curated: curatedCache };
 }
 

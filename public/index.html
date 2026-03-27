@@ -648,6 +648,36 @@
       font-family: var(--sans); font-size: 0.62rem; color: var(--muted); margin-top: 0.2rem;
     }
 
+    /* ─── Newsletter box ─── */
+    .newsletter-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0;
+      overflow: hidden;
+    }
+    .newsletter-item {
+      padding: 0.7rem 1.3rem;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .newsletter-item:last-child { border-bottom: none; }
+    .newsletter-item:hover { background: #1c1c24; }
+    .newsletter-item .story-title { font-size: 0.85rem; line-height: 1.3; font-family: var(--sans); }
+    .newsletter-item .story-title a { color: var(--text); }
+    .newsletter-item .story-title a:hover { color: var(--accent); }
+    .newsletter-item .story-title a:visited { color: #666; }
+    .newsletter-item .story-meta { font-size: 0.62rem; margin-top: 0.15rem; }
+
+    /* Sidebar compact newsletter */
+    .sidebar-section .newsletter-box {
+      border-color: var(--border);
+    }
+    .sidebar-section .newsletter-item { padding: 0.5rem 0.85rem; }
+    .sidebar-section .newsletter-item .story-outlet { font-size: 0.6rem; }
+    .sidebar-section .newsletter-item .story-title { font-size: 0.8rem; line-height: 1.25; }
+    .sidebar-section .newsletter-item .story-meta { font-size: 0.58rem; }
+
     .btn-translate {
       display: inline-block; font-family: var(--sans); font-size: 0.6rem;
       font-weight: 700; color: var(--muted); background: transparent;
@@ -728,6 +758,7 @@
     /* Sidebar boxes: lighter borders, tighter */
     .sidebar-section .headlines-box,
     .sidebar-section .analysis-section,
+    .sidebar-section .newsletter-box,
     .sidebar-section .podcast-box,
     .sidebar-section .civic-box {
       border-color: rgba(255,255,255,0.06);
@@ -777,17 +808,54 @@
     }
 
     @media (max-width: 750px) {
-      .container { padding: 0 1rem; }
-      h1 { font-size: 2rem; }
-      .header-inner { flex-direction: column; align-items: flex-start; }
-      .header-right { text-align: left; margin-top: 0.5rem; }
+      .container { padding: 0 0.75rem; }
+      h1 { font-size: 1.6rem; }
+      .header-inner { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
+      .header-right { text-align: left; margin-top: 0.3rem; }
+      .header-date { font-size: 0.78rem; }
+      .tagline { font-size: 0.78rem; padding-top: 0.6rem; margin-top: 0.7rem; }
+
+      /* Nav: horizontal scroll on mobile */
+      .nav-inner { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; gap: 0; }
+      .nav-inner::-webkit-scrollbar { display: none; }
+      .nav-btn { padding: 0.65rem 0.8rem; font-size: 0.7rem; white-space: nowrap; flex-shrink: 0; }
+      .topic-filter-wrap { flex-shrink: 0; }
+
+      /* Main content */
       .story-grid { grid-template-columns: 1fr; }
       .compact-list { column-count: 1; }
       .outlets-grid { grid-template-columns: 1fr; }
-      .lead-story { padding: 1.2rem; }
-      .lead-story .story-title { font-size: 1.3rem; }
+      .lead-story { padding: 1rem; }
+      .lead-story .story-title { font-size: 1.2rem; }
       .notable-item { grid-template-columns: 1fr; }
       .notable-item .right-col { text-align: left; }
+
+      /* Sidebar sections: full width, cleaner on mobile */
+      .curated-sidebar { padding: 0; }
+      .sidebar-section { margin-bottom: 1.2rem; }
+      .sidebar-section .section-label { font-size: 0.62rem; margin-bottom: 0.5rem; padding: 0.4rem 0.6rem; }
+
+      /* Podcasts: stack vertically on mobile */
+      .podcast-item { flex-direction: column; gap: 0.25rem; padding: 0.6rem 0.85rem; }
+      .podcast-name { width: auto; min-width: auto; }
+      .sidebar-section .podcast-item { flex-direction: column; gap: 0.2rem; }
+      .sidebar-section .podcast-name { width: auto; min-width: auto; }
+
+      /* Newsletter items */
+      .newsletter-item { padding: 0.5rem 0.85rem; }
+
+      /* Civic items */
+      .civic-item { padding: 0.5rem 0.85rem; }
+
+      /* Analysis items */
+      .analysis-item { grid-template-columns: 1fr; }
+      .analysis-tags { padding-top: 0; }
+
+      /* Section labels: smaller icons */
+      .section-icon { font-size: 0.7rem; }
+
+      /* Footer */
+      footer { font-size: 0.72rem; padding: 1.5rem 0; }
     }
 
     .hidden { display: none !important; }
@@ -1054,6 +1122,7 @@
       const headlineItems = (curated.headlines || []).filter(matchesTopic);
       const podcastItems = curated.podcasts || [];
       const civicItems = curated.civicReports || [];
+      const newsletterItems = (curated.newsletters || []).filter(matchesTopic);
 
       // Store essentials globally for re-sort
       window._essentials = essentials;
@@ -1120,6 +1189,21 @@
           sidebar += `<div class="analysis-tags">`;
           sidebar += topicTagsHtml(s.topics);
           sidebar += `</div>`;
+          sidebar += `</div>`;
+        }
+        sidebar += '</div></div>';
+      }
+
+      // Policy Newsletters
+      if (newsletterItems.length > 0) {
+        sidebar += `<div class="sidebar-section">`;
+        sidebar += `<div class="section-label"><span class="section-icon">&#128233;</span> Policy newsletters</div>`;
+        sidebar += '<div class="newsletter-box">';
+        for (const s of newsletterItems) {
+          sidebar += `<div class="newsletter-item">`;
+          sidebar += outletLabel(s);
+          sidebar += `<div class="story-title"><a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.title)}</a></div>`;
+          sidebar += storyMeta(s);
           sidebar += `</div>`;
         }
         sidebar += '</div></div>';
