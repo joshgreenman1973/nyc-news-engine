@@ -179,18 +179,35 @@ const POLICY_TOPICS = [
   'NYCHA', 'MTA',
 ];
 
-// Reporting-depth signals — indicate investigative or analytical work
-const DEPTH_SIGNALS = [
+// Investigative signals — strongest reward: original reporting, documents, accountability
+const INVESTIGATIVE_SIGNALS = [
   'investigation', 'investigat', 'obtained', 'documents show',
-  'records reveal', 'data shows', 'data analysis', 'FOIA', 'FOIL',
+  'records reveal', 'records obtained', 'documents obtained',
   'exposed', 'uncovered', 'accountability',
+  'FOIA', 'FOIL', 'public records',
+  'months-long', 'year-long', 'yearlong', 'multi-year',
+  'series', 'part 1', 'part 2', 'part 3',
+  'special report', 'exclusive',
+  'exposed', 'whistleblow', 'misconduct',
+  'data analysis', 'data shows', 'data reveal',
+  'first reported', 'first to report',
+];
+
+// Explanatory signals — strong reward: context, depth, making policy legible
+const EXPLANATORY_SIGNALS = [
   'analysis', 'explained', 'explainer', 'what you need to know',
-  'how it works', 'what it means', 'deep dive', 'in depth',
+  'how it works', 'what it means', 'why it matters',
+  'deep dive', 'in depth', 'in-depth',
   'behind the', 'inside the', 'the story behind',
-  'months-long', 'year-long', 'series', 'part 1', 'part 2',
-  'special report', 'long read', 'feature',
+  'long read', 'feature', 'reported essay',
   'first-person', 'oral history', 'profile',
-  'exclusive',
+  'how we got here', 'a closer look', 'unpacking',
+  'the case for', 'the case against',
+  'what went wrong', 'lessons from', 'what happened',
+];
+
+// General depth signals — lighter weight, reward craft and governance focus
+const DEPTH_SIGNALS = [
   'community', 'neighborhood', 'borough', 'council',
   'city hall', 'Albany', 'state legislature',
   'mayor', 'governor', 'comptroller', 'public advocate', 'speaker',
@@ -251,7 +268,25 @@ function scoreStory(item, outlet) {
   else if (policyHits >= 3) score += 10;
   else if (policyHits >= 2) score += 6;
 
-  // Reporting-depth signals — lighter weight, reward craft not just topic
+  // Investigative signals — heavy weight, this is the journalism we most want to surface
+  let investigativeHits = 0;
+  for (const s of INVESTIGATIVE_SIGNALS) {
+    if (combined.includes(s.toLowerCase())) { score += 8; investigativeHits++; }
+  }
+  if (investigativeHits >= 3) score += 15;
+  else if (investigativeHits >= 2) score += 10;
+  else if (investigativeHits >= 1) score += 5;
+
+  // Explanatory signals — strong weight, context and depth matter
+  let explanatoryHits = 0;
+  for (const s of EXPLANATORY_SIGNALS) {
+    if (combined.includes(s.toLowerCase())) { score += 6; explanatoryHits++; }
+  }
+  if (explanatoryHits >= 3) score += 12;
+  else if (explanatoryHits >= 2) score += 7;
+  else if (explanatoryHits >= 1) score += 3;
+
+  // General depth signals — lighter weight, reward governance focus
   let depthHits = 0;
   for (const s of DEPTH_SIGNALS) {
     if (combined.includes(s.toLowerCase())) { score += 4; depthHits++; }
