@@ -678,6 +678,54 @@
     .sidebar-section .newsletter-item .story-title { font-size: 0.8rem; line-height: 1.25; }
     .sidebar-section .newsletter-item .story-meta { font-size: 0.58rem; }
 
+    /* ─── Social buzz box ─── */
+    .buzz-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0;
+      overflow: hidden;
+    }
+    .buzz-item {
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .buzz-item:last-child { border-bottom: none; }
+    .buzz-item:hover { background: #1c1c24; }
+    .buzz-item .story-title { font-size: 0.85rem; line-height: 1.3; font-family: var(--sans); }
+    .buzz-item .story-title a { color: var(--text); }
+    .buzz-item .story-title a:hover { color: var(--accent); }
+    .buzz-item .buzz-meta {
+      display: flex; align-items: center; gap: 0.6rem;
+      font-family: var(--sans); font-size: 0.6rem; color: var(--muted);
+      margin-top: 0.2rem;
+    }
+    .buzz-source {
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+      font-size: 0.55rem;
+    }
+    .buzz-source.reddit { color: #ff4500; }
+    .buzz-source.google-news { color: #4285f4; }
+    .buzz-engagement {
+      display: inline-flex; align-items: center; gap: 0.25rem;
+      font-size: 0.58rem;
+    }
+    .buzz-discuss {
+      font-size: 0.55rem; color: var(--muted); text-decoration: none;
+      border-bottom: 1px dotted var(--border);
+    }
+    .buzz-discuss:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* Sidebar compact buzz */
+    .sidebar-section .buzz-box {
+      border-color: rgba(255,255,255,0.06);
+      border-radius: 6px;
+      background: rgba(255,255,255,0.02);
+    }
+    .sidebar-section .buzz-item { padding: 0.45rem 0.85rem; }
+    .sidebar-section .buzz-item .story-title { font-size: 0.8rem; line-height: 1.25; }
+
     .btn-translate {
       display: inline-block; font-family: var(--sans); font-size: 0.6rem;
       font-weight: 700; color: var(--muted); background: transparent;
@@ -910,9 +958,24 @@
       Every link goes to the original source. Support these newsrooms directly.<br>
       Stories are scored for depth, reporting effort, and policy relevance. Auto-refreshes every 5 minutes.
       <div class="footer-note">
-        Scoring weighs investigative signals, policy keywords, byline attribution, outlet independence, and recency.
-        Wire-style breaking news and shallow aggregation are deprioritized. This is an editorial lens, not an algorithm.
-        Archive retains 6 months of stories.
+        <strong>How scoring works:</strong> Stories are ranked by a weighted combination of investigative signals
+        (FOIA, documents obtained, data analysis), explanatory depth (deep dives, explainers, accountability follow-ups),
+        policy topic relevance (housing, criminal justice, transit, fiscal oversight), NYC locality, outlet tier,
+        byline attribution, and recency. Stories mentioning both the mayor and governor get a bonus for
+        state-city policy significance. Wire-style breaking news, shallow aggregation, opinion, sports, and
+        entertainment are deprioritized or excluded. Today's Picks requires at least one policy, investigative,
+        or explanatory signal -- high scores from freshness and outlet tier alone are not enough.
+        Opinion pieces (op-eds, editorials, columns) appear in the sidebar but never in Today's Picks.
+        When multiple outlets cover the same story, the deepest version is kept using title-similarity
+        deduplication. Overlapping policy keywords are deduplicated to prevent inflated scores.
+        <br><br>
+        <strong>Buzzing in NYC:</strong> Combines hot posts from Reddit (r/nyc and r/newyorkcity) with
+        Google News trending results for New York City. Reddit posts are filtered to news links only
+        (no self-posts, images, or memes) and ranked by upvotes and comment count. Items that overlap
+        with stories already in Today's Picks are removed. This section reflects public conversation,
+        not editorial judgment -- it may surface stories the scoring algorithm would not prioritize.
+        <br><br>
+        Archive retains 6 months of stories. This is an editorial lens, not an algorithm.
       </div>
     </div>
   </footer>
@@ -1123,6 +1186,7 @@
       const podcastItems = curated.podcasts || [];
       const civicItems = curated.civicReports || [];
       const newsletterItems = (curated.newsletters || []).filter(matchesTopic);
+      const buzzItems = curated.socialBuzz || [];
 
       // Store essentials globally for re-sort
       window._essentials = essentials;
@@ -1188,6 +1252,30 @@
           sidebar += `</div>`;
           sidebar += `<div class="analysis-tags">`;
           sidebar += topicTagsHtml(s.topics);
+          sidebar += `</div>`;
+          sidebar += `</div>`;
+        }
+        sidebar += '</div></div>';
+      }
+
+      // Social Buzz
+      if (buzzItems.length > 0) {
+        sidebar += `<div class="sidebar-section">`;
+        sidebar += `<div class="section-label"><span class="section-icon">&#128293;</span> Buzzing in NYC</div>`;
+        sidebar += '<div class="buzz-box">';
+        for (const b of buzzItems) {
+          sidebar += `<div class="buzz-item">`;
+          sidebar += `<div class="story-title"><a href="${esc(b.link)}" target="_blank" rel="noopener">${esc(b.title)}</a></div>`;
+          sidebar += `<div class="buzz-meta">`;
+          if (b.source === 'reddit') {
+            sidebar += `<span class="buzz-source reddit">r/${esc(b.subreddit)}</span>`;
+            sidebar += `<span class="buzz-engagement">${b.score} pts</span>`;
+            sidebar += `<span class="buzz-engagement">${b.comments} comments</span>`;
+            if (b.discussionUrl) sidebar += `<a href="${esc(b.discussionUrl)}" target="_blank" rel="noopener" class="buzz-discuss">discussion</a>`;
+          } else {
+            sidebar += `<span class="buzz-source google-news">trending</span>`;
+            if (b.pubDate) sidebar += `<span>${timeAgo(b.pubDate)}</span>`;
+          }
           sidebar += `</div>`;
           sidebar += `</div>`;
         }

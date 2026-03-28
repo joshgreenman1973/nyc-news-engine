@@ -871,6 +871,96 @@ async function _doFetchAllFeeds(now) {
     .sort((a, b) => new Date(b.pubDate || 0) - new Date(a.pubDate || 0))
     .slice(0, 8);
 
+  // ─── Social buzz — Reddit + Google News trending ───
+  let socialBuzz = [];
+  try {
+    const buzzItems = [];
+
+    // Reddit: hot posts from r/nyc + r/newyorkcity (single multi-sub request)
+    const redditUrl = 'https://www.reddit.com/r/nyc+newyorkcity/hot.json?limit=30';
+    const redditResp = await fetch(redditUrl, {
+      headers: { 'User-Agent': 'NYCNewsEngine/1.0 (policy journalism aggregator)' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (redditResp.ok) {
+      const redditData = await redditResp.json();
+      const posts = (redditData?.data?.children || []).map(c => c.data);
+      for (const p of posts) {
+        // Skip self-posts, images, stickied, and low-engagement
+        if (p.is_self || p.stickied) continue;
+        if ((p.score || 0) < 15 && (p.num_comments || 0) < 8) continue;
+        // Skip image/video posts
+        const domain = (p.domain || '').toLowerCase();
+        if (/reddit\.com|imgur|i\.redd\.it|v\.redd\.it|youtube|youtu\.be|gfycat|streamable/.test(domain)) continue;
+        buzzItems.push({
+          title: (p.title || '').substring(0, 140),
+          link: p.url || `https://reddit.com${p.permalink}`,
+          source: 'reddit',
+          subreddit: p.subreddit,
+          score: p.score || 0,
+          comments: p.num_comments || 0,
+          engagement: (p.score || 0) + (p.num_comments || 0) * 2,
+          pubDate: p.created_utc ? new Date(p.created_utc * 1000).toISOString() : null,
+          discussionUrl: `https://reddit.com${p.permalink}`,
+        });
+      }
+    }
+
+    // Google News: trending NYC stories (last 2 days)
+    const gnUrl = 'https://news.google.com/rss/search?q=NYC+OR+%22new+york+city%22+when:2d&hl=en-US&gl=US&ceid=US:en';
+    try {
+      const gnFeed = await parser.parseURL(gnUrl);
+      for (const item of (gnFeed.items || []).slice(0, 12)) {
+        if (!item.title || !item.link) continue;
+        buzzItems.push({
+          title: (item.title || '').substring(0, 140),
+          link: item.link,
+          source: 'google-news',
+          score: 0,
+          comments: 0,
+          engagement: 0,
+          pubDate: item.pubDate || item.isoDate || null,
+          discussionUrl: null,
+        });
+      }
+    } catch (gnErr) {
+      console.log(`Google News trending fetch failed: ${gnErr.message}`);
+    }
+
+    // Deduplicate across sources using same Jaccard approach
+    const buzzStopWords = new Set(['a','an','the','and','or','but','in','on','at','to','for','of','is','it','by','as','its','with','from','was','are','has','had','how','why','what','who','that','this','will','can','not','be','do','no','new','says','say','said','over','after','into','than','may','more','could','would','about','just','been','have','also','some','when','out','all','up']);
+    function buzzWords(t) {
+      return t.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !buzzStopWords.has(w));
+    }
+    function buzzSimilarity(a, b) {
+      if (!a.length || !b.length) return 0;
+      const setA = new Set(a), setB = new Set(b);
+      let inter = 0;
+      for (const w of setA) { if (setB.has(w)) inter++; }
+      return inter / (setA.size + setB.size - inter);
+    }
+
+    // Sort: Reddit items by engagement, Google News by position (already ordered by relevance)
+    buzzItems.sort((a, b) => b.engagement - a.engagement);
+
+    const kept = [];
+    const keptWords = [];
+    for (const item of buzzItems) {
+      const words = buzzWords(item.title);
+      if (keptWords.some(kw => buzzSimilarity(words, kw) >= 0.45)) continue;
+      // Also deduplicate against main story titles
+      if (dedupedWords.some(dw => buzzSimilarity(words, dw) >= 0.45)) continue;
+      kept.push(item);
+      keptWords.push(words);
+      if (kept.length >= 6) break;
+    }
+    socialBuzz = kept;
+    console.log(`  Social buzz: ${socialBuzz.length} items (${buzzItems.length} raw from Reddit + Google News)`);
+  } catch (buzzErr) {
+    console.log(`Social buzz fetch failed (non-fatal): ${buzzErr.message}`);
+    socialBuzz = [];
+  }
+
   // Collect all active topics for the filter UI
   const topicCounts = {};
   for (const s of deduped) {
@@ -885,7 +975,7 @@ async function _doFetchAllFeeds(now) {
     .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
     .slice(0, 80);
 
-  curatedCache = { essential, notable, standard, analysis, newsletters, headlines, podcasts, civicReports: filteredCivic, latest, totalScored: deduped.length, topicCounts };
+  curatedCache = { essential, notable, standard, analysis, newsletters, headlines, podcasts, civicReports: filteredCivic, socialBuzz, latest, totalScored: deduped.length, topicCounts };
   feedCache = feeds;
   lastFetchTime = now;
 
