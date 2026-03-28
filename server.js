@@ -156,6 +156,8 @@ function classifyTopics(title, snippet, categories) {
 
 // ─── Curation scoring ─────────────────────────────────────────────────
 // Heavy policy topics — these are the serious subjects that define NYC public policy discourse
+// NOTE: sorted longest-first at scoring time to prevent substring double-counting
+// (e.g. 'homeless' inside 'homelessness')
 const POLICY_TOPICS = [
   'affordable housing', 'public health', 'criminal justice', 'education policy',
   'homelessness', 'homeless', 'eviction', 'tenant', 'shelter system', 'shelter',
@@ -177,6 +179,9 @@ const POLICY_TOPICS = [
   'reform', 'overhaul',
   'workforce', 'job training', 'wage',
   'NYCHA', 'MTA',
+  // Fiscal & spending accountability
+  'audit', 'inspector general', 'spending', 'procurement', 'contract',
+  'cost overrun', 'taxpayer', 'fiscal', 'deficit', 'revenue',
 ];
 
 // Investigative signals — strongest reward: original reporting, documents, accountability
@@ -204,6 +209,11 @@ const EXPLANATORY_SIGNALS = [
   'how we got here', 'a closer look', 'unpacking',
   'the case for', 'the case against',
   'what went wrong', 'lessons from', 'what happened',
+  // Accountability follow-up — checking back on promises and programs
+  'months later', 'one year after', 'years later',
+  'still hasn\'t', 'still has not', 'failed to implement',
+  'promised but', 'remains unfulfilled', 'has yet to',
+  'follow-up', 'revisited', 'where things stand',
 ];
 
 // General depth signals — lighter weight, reward craft and governance focus
@@ -214,6 +224,10 @@ const DEPTH_SIGNALS = [
   'political', 'power broker',
   'census', 'demographic', 'population',
   'effectiveness', 'program', 'initiative', 'labor',
+  // Government action — light weight so procedural votes don't outrank exposés
+  'passed', 'approved', 'vetoed', 'signed into law',
+  'executive order', 'proposed rule', 'public hearing', 'testimony',
+  'enacted', 'adopted', 'introduced a bill',
 ];
 
 const SHALLOW_SIGNALS = [
@@ -259,9 +273,18 @@ function scoreStory(item, outlet) {
   else if (outlet.tier === 3) score += 2;
 
   // Policy topic hits — serious subjects get heavy weight
+  // Sort longest-first so 'homelessness' matches before 'homeless',
+  // then skip any term that is a substring of an already-matched term
+  const sortedTopics = [...POLICY_TOPICS].sort((a, b) => b.length - a.length);
+  const matchedTerms = [];
   let policyHits = 0;
-  for (const s of POLICY_TOPICS) {
-    if (combined.includes(s.toLowerCase())) { score += 8; policyHits++; }
+  for (const s of sortedTopics) {
+    const lower = s.toLowerCase();
+    if (!combined.includes(lower)) continue;
+    if (matchedTerms.some(m => m.includes(lower))) continue;
+    matchedTerms.push(lower);
+    score += 8;
+    policyHits++;
   }
   // Compound bonus: stories hitting multiple policy topics are deeply relevant
   if (policyHits >= 4) score += 15;
@@ -337,7 +360,7 @@ function scoreStory(item, outlet) {
     else if (hoursAgo > 72) score -= 5;
   }
 
-  return Math.max(0, Math.min(100, score));
+  return Math.max(0, score);
 }
 
 function classifyRank(score) {
