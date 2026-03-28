@@ -416,6 +416,23 @@ const ANALYSIS_SIGNALS = [
   'deep dive', 'long read', 'big picture',
 ];
 
+// Opinion signals — these mark pieces that should NEVER reach Today's Picks.
+// Distinct from analysis: a reported explainer on SEQRA is analysis but not opinion.
+// An op-ed arguing "we need to fix SEQRA" is opinion.
+const OPINION_SIGNALS = [
+  'opinion', 'op-ed', 'oped', 'editorial', 'commentary',
+  'guest essay', 'column', 'perspective', 'viewpoint',
+  'letter to the editor', 'letter to',
+  'the case for', 'the case against',
+  'in defense of', 'a better way',
+  'we need to', 'it\'s time to', 'we must', 'we should',
+  'how to fix', 'how to think about',
+];
+const OPINION_CATEGORIES = [
+  'opinion', 'commentary', 'editorial', 'op-ed', 'oped',
+  'columns', 'perspectives', 'viewpoints', 'letters',
+];
+
 // Category tags from RSS that signal opinion/analysis
 const ANALYSIS_CATEGORIES = [
   'opinion', 'commentary', 'analysis', 'editorial', 'op-ed',
@@ -448,6 +465,30 @@ function isAnalysisStory(item, outlet) {
   // Need at least 2 signals from text, or 1 signal + long snippet (suggests depth)
   if (signalCount >= 2) return true;
   if (signalCount >= 1 && (item.snippet || '').length > 200) return true;
+
+  return false;
+}
+
+// Opinion detection — stricter than analysis. Opinion pieces stay in the
+// sidebar and never reach Today's Picks. Reported analysis/explainers
+// (data-driven, investigative, explanatory) CAN reach Today's Picks.
+function isOpinionStory(item, outlet) {
+  const titleLower = (item.title || '').toLowerCase();
+  const snippetLower = (item.snippet || '').toLowerCase();
+  const combined = titleLower + ' ' + snippetLower;
+  const categories = (item.categories || []).map((c) =>
+    (typeof c === 'string' ? c : String(c)).toLowerCase()
+  );
+
+  // Category tags are the strongest signal
+  for (const cat of categories) {
+    if (OPINION_CATEGORIES.some((oc) => cat.includes(oc))) return true;
+  }
+
+  // Title/snippet signals — need clear opinion language
+  for (const signal of OPINION_SIGNALS) {
+    if (combined.includes(signal)) return true;
+  }
 
   return false;
 }
@@ -516,6 +557,7 @@ async function fetchFeed(outlet) {
       story.hasPolicySubstance = result.hasPolicySubstance;
       story.rank = classifyRank(story.score);
       story.isAnalysis = isAnalysisStory(story, outlet);
+      story.isOpinion = isOpinionStory(story, outlet);
 
       return story;
     });
@@ -673,8 +715,11 @@ async function _doFetchAllFeeds(now) {
     }
   }
 
-  // Separate analysis/commentary from news stories
+  // Separate analysis/commentary from news stories for sidebar sections
   const analysisPool = deduped.filter((s) => s.isAnalysis && s.score >= 15);
+
+  // News pool: everything that isn't routed to analysis sidebar
+  // PLUS non-opinion analysis pieces (reported explainers can compete for Today's Picks)
   const newsPool = deduped.filter((s) => !s.isAnalysis);
 
   // Split newsletters out of analysis pool into their own section
@@ -697,6 +742,9 @@ async function _doFetchAllFeeds(now) {
     // Gate: stories without any policy, investigative, or explanatory
     // substance never belong in Today's Picks regardless of score
     if (!s.hasPolicySubstance) return false;
+    // Opinion pieces (op-eds, editorials, columns) stay in the sidebar —
+    // only reported analysis/explainers can reach Today's Picks
+    if (s.isOpinion) return false;
     const age = s.pubDate ? nowMs - new Date(s.pubDate).getTime() : Infinity;
     return age < FRESHNESS_CUTOFF;
   });
