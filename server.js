@@ -389,7 +389,10 @@ function classifyRank(score) {
 
 // ─── Analysis / commentary detection ──────────────────────────────────
 // Outlets whose content is almost entirely analysis/commentary
-const ANALYSIS_OUTLETS = ['vital-city', 'city-journal', 'city-journal-sub', 'nyc-policy-forum', 'nyc-politics-101', 'maximum-ny', 'abundance-ny', 'nycuriosity', 'sidewalk-chorus', 'bigger-apple', 'political-currents', 'metro-mosaic', 'gotham-gazette', 'ny-editorial-board'];
+// Vital City removed: its reported features and explainers should compete
+// for Today's Picks. Individual stories still get flagged as analysis
+// when they trigger analysis signals (op-ed, essay, the case for, etc.)
+const ANALYSIS_OUTLETS = ['city-journal', 'city-journal-sub', 'nyc-policy-forum', 'nyc-politics-101', 'maximum-ny', 'abundance-ny', 'nycuriosity', 'sidewalk-chorus', 'bigger-apple', 'political-currents', 'metro-mosaic', 'gotham-gazette', 'ny-editorial-board'];
 
 // Newsletter / Substack outlets — shown in their own sidebar section
 const NEWSLETTER_SLUGS = ['nyc-politics-101', 'nyc-policy-forum', 'maximum-ny', 'abundance-ny', 'nycuriosity', 'sidewalk-chorus', 'city-journal-sub', 'bigger-apple', 'political-currents', 'metro-mosaic', 'ny-editorial-board'];
@@ -421,7 +424,7 @@ const ANALYSIS_CATEGORIES = [
 ];
 
 function isAnalysisStory(item, outlet) {
-  // Vital City is almost entirely analysis/commentary
+  // Outlets that are almost entirely analysis/commentary/newsletters
   if (ANALYSIS_OUTLETS.includes(outlet.slug)) return true;
 
   const titleLower = (item.title || '').toLowerCase();
