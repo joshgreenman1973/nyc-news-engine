@@ -239,6 +239,12 @@ const SHALLOW_SIGNALS = [
   'weather alert', 'forecast', 'traffic delays',
   'celebrity', 'lottery', 'winning numbers',
   'slideshow', 'gallery', 'ranked', 'top 10',
+  // Rebroadcast / repackaged / entertainment segments
+  'best of:', 'rebroadcast', 'encore presentation',
+  'prime video', 'netflix', 'hulu', 'streaming',
+  'new album', 'new book', 'memoir',
+  'actor ', 'actress', 'musician', 'singer', 'comedian',
+  'r&b', 'hip hop', 'hip-hop', 'rock star',
 ];
 
 // Soft-news / lifestyle / sports signals → heavy penalty to keep out of Today's Picks
@@ -366,7 +372,12 @@ function scoreStory(item, outlet) {
     else if (hoursAgo > 72) score -= 5;
   }
 
-  return Math.max(0, score);
+  // Flag: does this story have any policy substance?
+  // Stories without at least one policy topic, investigative signal,
+  // or explanatory signal should never make Today's Picks
+  const hasPolicySubstance = policyHits > 0 || investigativeHits > 0 || explanatoryHits > 0;
+
+  return { score: Math.max(0, score), hasPolicySubstance };
 }
 
 function classifyRank(score) {
@@ -497,7 +508,9 @@ async function fetchFeed(outlet) {
         outletTier: outlet.tier,
       };
 
-      story.score = scoreStory(story, outlet);
+      const result = scoreStory(story, outlet);
+      story.score = result.score;
+      story.hasPolicySubstance = result.hasPolicySubstance;
       story.rank = classifyRank(story.score);
       story.isAnalysis = isAnalysisStory(story, outlet);
 
@@ -505,6 +518,7 @@ async function fetchFeed(outlet) {
     });
 
     // WNYC's feed mixes news with BBC bulletins, concert listings, and podcast reruns — filter aggressively
+    // Brian Lehrer episodes are already captured in the podcasts section
     if (outlet.slug === 'wnyc') {
       const junkPatterns = [
         /^\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}\s+GMT/i,  // BBC World Service timestamps ("13/03/2026 02:01 GMT")
@@ -513,6 +527,10 @@ async function fetchFeed(outlet) {
         /\bBBC\b/i,                                       // All BBC content
         /\bPBS\s+News\s+Hour\b/i,                         // PBS national broadcast
         /\bLatest\s+Newscast\s+From\b/i,                  // Generic WNYC newscast placeholder
+        /\bBest\s+Of:/i,                                   // Rebroadcast compilations (already in podcasts)
+        /\bAll\s+Of\s+It\b/i,                              // Arts & culture show
+        /\bNew\s+Sounds\b/i,                               // Music show
+        /\bSoundcheck\b/i,                                 // Music show
       ];
       items = items.filter(s => {
         const combined = `${s.title} ${s.link}`;
@@ -673,6 +691,9 @@ async function _doFetchAllFeeds(now) {
   const essentialCandidates = newsPool.filter(s => {
     if (analysisIds.has(s.id)) return false;
     if (s.rank !== 'essential') return false;
+    // Gate: stories without any policy, investigative, or explanatory
+    // substance never belong in Today's Picks regardless of score
+    if (!s.hasPolicySubstance) return false;
     const age = s.pubDate ? nowMs - new Date(s.pubDate).getTime() : Infinity;
     return age < FRESHNESS_CUTOFF;
   });
