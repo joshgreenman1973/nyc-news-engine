@@ -343,6 +343,12 @@ function scoreStory(item, outlet) {
   else if (nycHits >= 2) score += 5;
   else if (nycHits >= 1) score += 2;
 
+  // State-city intersection bonus — both mayor and governor means
+  // intergovernmental policy tension, which is always significant
+  const mentionsMayor = combined.includes('mayor') || combined.includes('adams') || combined.includes('city hall');
+  const mentionsGovernor = combined.includes('governor') || combined.includes('hochul') || combined.includes('albany');
+  if (mentionsMayor && mentionsGovernor) score += 10;
+
   const titleWords = (item.title || '').split(/\s+/).length;
   if (titleWords >= 8 && titleWords <= 20) score += 4;
 
@@ -605,17 +611,46 @@ async function _doFetchAllFeeds(now) {
   }
 
   // Build curated lists
+  // Sort by score, then by snippet length as tiebreaker (longer = deeper coverage)
+  // so when dedup removes near-duplicates, the deepest version survives
   const sorted = allStories
     .filter((s) => s.link && s.title !== 'Untitled')
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return (b.snippet || '').length - (a.snippet || '').length;
+    });
 
-  const seen = new Set();
-  const deduped = sorted.filter((story) => {
-    const key = story.title.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 40);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  // ── Deduplication ──
+  // Extract significant words from a title (drop common short words)
+  const STOP_WORDS = new Set(['a','an','the','and','or','but','in','on','at','to','for','of','is','it','by','as','its','with','from','was','are','has','had','how','why','what','who','that','this','will','can','not','be','do','no','new','says','say','said','over','after','into','than','may','more','could','would','about','just','been','have','also','some','when','out','all','up']);
+  function titleWords(title) {
+    return title.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/)
+      .filter(w => w.length > 2 && !STOP_WORDS.has(w));
+  }
+  // Jaccard similarity on significant words
+  function titleSimilarity(wordsA, wordsB) {
+    if (wordsA.length === 0 || wordsB.length === 0) return 0;
+    const setA = new Set(wordsA);
+    const setB = new Set(wordsB);
+    let intersection = 0;
+    for (const w of setA) { if (setB.has(w)) intersection++; }
+    return intersection / (setA.size + setB.size - intersection);
+  }
+
+  const deduped = [];
+  const dedupedWords = [];
+  for (const story of sorted) {
+    const words = titleWords(story.title);
+    // Check if this story is too similar to one already kept
+    let isDupe = false;
+    for (const existing of dedupedWords) {
+      if (titleSimilarity(words, existing) >= 0.5) { isDupe = true; break; }
+    }
+    if (!isDupe) {
+      deduped.push(story);
+      dedupedWords.push(words);
+    }
+  }
 
   // Separate analysis/commentary from news stories
   const analysisPool = deduped.filter((s) => s.isAnalysis && s.score >= 15);
