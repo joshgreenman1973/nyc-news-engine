@@ -154,6 +154,43 @@ function classifyTopics(title, snippet, categories) {
   return matched.slice(0, 3);
 }
 
+// ─── Text similarity utilities (shared by dedup and social buzz) ──────
+const STOP_WORDS = new Set([
+  'a','an','the','and','or','but','in','on','at','to','for','of','is','it',
+  'by','as','its','with','from','was','are','has','had','how','why','what',
+  'who','that','this','will','can','not','be','do','no','new','says','say',
+  'said','over','after','into','than','may','more','could','would','about',
+  'just','been','have','also','some','when','out','all','up',
+]);
+
+function extractSignificantWords(text) {
+  return text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/)
+    .filter(w => w.length > 2 && !STOP_WORDS.has(w));
+}
+
+function jaccardSimilarity(wordsA, wordsB) {
+  if (wordsA.length === 0 || wordsB.length === 0) return 0;
+  const setA = new Set(wordsA);
+  const setB = new Set(wordsB);
+  let intersection = 0;
+  for (const w of setA) { if (setB.has(w)) intersection++; }
+  return intersection / (setA.size + setB.size - intersection);
+}
+
+// ─── Curation constants ──────────────────────────────────────────────
+const MAX_ESSENTIAL_PICKS = 13;
+const MAX_NOTABLE = 15;
+const MAX_STANDARD = 20;
+const MAX_LATEST = 80;
+const MAX_ANALYSIS = 10;
+const MAX_NEWSLETTERS = 8;
+const MAX_CIVIC_REPORTS = 8;
+const MAX_SOCIAL_BUZZ = 6;
+const FRESHNESS_CUTOFF_MS = 36 * 3600 * 1000;
+const DEDUP_THRESHOLD = 0.5;
+const BUZZ_DEDUP_THRESHOLD = 0.45;
+const NEW_STORY_THRESHOLD_MS = 2 * 3600 * 1000;
+
 // ─── Curation scoring ─────────────────────────────────────────────────
 // Heavy policy topics — these are the serious subjects that define NYC public policy discourse
 // NOTE: sorted longest-first at scoring time to prevent substring double-counting
@@ -193,7 +230,7 @@ const INVESTIGATIVE_SIGNALS = [
   'months-long', 'year-long', 'yearlong', 'multi-year',
   'series', 'part 1', 'part 2', 'part 3',
   'special report', 'exclusive',
-  'exposed', 'whistleblow', 'misconduct',
+  'whistleblow', 'misconduct',
   'data analysis', 'data shows', 'data reveal',
   'first reported', 'first to report',
 ];
@@ -270,93 +307,96 @@ const SOFT_NEWS_SIGNALS = [
   'kardashian', 'taylor swift', 'beyonce', 'drake',
 ];
 
+// Pre-sorted for substring dedup (longest first)
+const SORTED_POLICY_TOPICS = [...POLICY_TOPICS].sort((a, b) => b.length - a.length);
+
+const NYC_LOCALITY = [
+  'new york city', 'nyc', 'city hall', 'city council', 'albany',
+  'brooklyn', 'manhattan', 'queens', 'bronx', 'staten island',
+  'nypd', 'mta', 'nycha', 'rikers', 'adams', 'hochul',
+  'de blasio', 'comptroller', 'public advocate',
+];
+
+// Count how many signals from an array match the text
+function countSignalHits(text, signals) {
+  let hits = 0;
+  for (const s of signals) {
+    if (text.includes(s.toLowerCase())) hits++;
+  }
+  return hits;
+}
+
+// Count policy hits with substring dedup
+function countPolicyHits(text) {
+  const matched = [];
+  let hits = 0;
+  for (const s of SORTED_POLICY_TOPICS) {
+    const lower = s.toLowerCase();
+    if (!text.includes(lower)) continue;
+    if (matched.some(m => m.includes(lower))) continue;
+    matched.push(lower);
+    hits++;
+  }
+  return hits;
+}
+
 function scoreStory(item, outlet) {
   let score = 0;
   const combined = `${item.title} ${item.snippet || ''}`.toLowerCase();
 
+  // ── Outlet tier ──
   if (outlet.tier === 1) score += 12;
   else if (outlet.tier === 2) score += 8;
   else if (outlet.tier === 3) score += 2;
 
-  // Policy topic hits — serious subjects get heavy weight
-  // Sort longest-first so 'homelessness' matches before 'homeless',
-  // then skip any term that is a substring of an already-matched term
-  const sortedTopics = [...POLICY_TOPICS].sort((a, b) => b.length - a.length);
-  const matchedTerms = [];
-  let policyHits = 0;
-  for (const s of sortedTopics) {
-    const lower = s.toLowerCase();
-    if (!combined.includes(lower)) continue;
-    if (matchedTerms.some(m => m.includes(lower))) continue;
-    matchedTerms.push(lower);
-    score += 8;
-    policyHits++;
-  }
-  // Compound bonus: stories hitting multiple policy topics are deeply relevant
+  // ── Policy topics (+8 each, compound bonus for multi-topic stories) ──
+  const policyHits = countPolicyHits(combined);
+  score += policyHits * 8;
   if (policyHits >= 4) score += 15;
   else if (policyHits >= 3) score += 10;
   else if (policyHits >= 2) score += 6;
 
-  // Investigative signals — heavy weight, this is the journalism we most want to surface
-  let investigativeHits = 0;
-  for (const s of INVESTIGATIVE_SIGNALS) {
-    if (combined.includes(s.toLowerCase())) { score += 8; investigativeHits++; }
-  }
+  // ── Investigative (+8 each, strongest compound bonus) ──
+  const investigativeHits = countSignalHits(combined, INVESTIGATIVE_SIGNALS);
+  score += investigativeHits * 8;
   if (investigativeHits >= 3) score += 15;
   else if (investigativeHits >= 2) score += 10;
   else if (investigativeHits >= 1) score += 5;
 
-  // Explanatory signals — strong weight, context and depth matter
-  let explanatoryHits = 0;
-  for (const s of EXPLANATORY_SIGNALS) {
-    if (combined.includes(s.toLowerCase())) { score += 6; explanatoryHits++; }
-  }
+  // ── Explanatory (+6 each, strong compound bonus) ──
+  const explanatoryHits = countSignalHits(combined, EXPLANATORY_SIGNALS);
+  score += explanatoryHits * 6;
   if (explanatoryHits >= 3) score += 12;
   else if (explanatoryHits >= 2) score += 7;
   else if (explanatoryHits >= 1) score += 3;
 
-  // General depth signals — lighter weight, reward governance focus
-  let depthHits = 0;
-  for (const s of DEPTH_SIGNALS) {
-    if (combined.includes(s.toLowerCase())) { score += 4; depthHits++; }
-  }
+  // ── General depth (+4 each, light compound bonus) ──
+  const depthHits = countSignalHits(combined, DEPTH_SIGNALS);
+  score += depthHits * 4;
   if (depthHits >= 3) score += 5;
   else if (depthHits >= 2) score += 3;
 
-  for (const s of SHALLOW_SIGNALS) {
-    if (combined.includes(s.toLowerCase())) score -= 12;
-  }
-  for (const s of SOFT_NEWS_SIGNALS) {
-    if (combined.includes(s.toLowerCase())) { score -= 20; break; }
-  }
+  // ── Penalties ──
+  score -= countSignalHits(combined, SHALLOW_SIGNALS) * 12;
+  if (SOFT_NEWS_SIGNALS.some(s => combined.includes(s.toLowerCase()))) score -= 20;
 
-  // NYC-locality bonus — reward stories explicitly about NYC governance & place
+  // ── NYC locality ──
   const link = (item.link || '').toLowerCase();
-  if (link.includes('/nyregion/') || link.includes('/nyc/') || link.includes('/new-york/')) {
-    score += 4;
-  }
-  const NYC_LOCALITY = [
-    'new york city', 'nyc', 'city hall', 'city council', 'albany',
-    'brooklyn', 'manhattan', 'queens', 'bronx', 'staten island',
-    'nypd', 'mta', 'nycha', 'rikers', 'adams', 'hochul',
-    'de blasio', 'comptroller', 'public advocate',
-  ];
-  let nycHits = 0;
-  for (const loc of NYC_LOCALITY) {
-    if (combined.includes(loc)) nycHits++;
-  }
+  if (link.includes('/nyregion/') || link.includes('/nyc/') || link.includes('/new-york/')) score += 4;
+
+  const nycHits = countSignalHits(combined, NYC_LOCALITY);
   if (nycHits >= 3) score += 8;
   else if (nycHits >= 2) score += 5;
   else if (nycHits >= 1) score += 2;
 
-  // State-city intersection bonus — both mayor and governor means
-  // intergovernmental policy tension, which is always significant
+  // ── State-city intersection (+10 when both mayor and governor appear) ──
   const mentionsMayor = combined.includes('mayor') || combined.includes('adams') || combined.includes('city hall');
   const mentionsGovernor = combined.includes('governor') || combined.includes('hochul') || combined.includes('albany');
   if (mentionsMayor && mentionsGovernor) score += 10;
 
-  const titleWords = (item.title || '').split(/\s+/).length;
-  if (titleWords >= 8 && titleWords <= 20) score += 4;
+  // ── Story quality signals ──
+  const titleWordCount = (item.title || '').split(/\s+/).length;
+  if (titleWordCount >= 8 && titleWordCount <= 20) score += 4;
 
   const snippetLen = (item.snippet || '').length;
   if (snippetLen > 200) score += 5;
@@ -364,6 +404,7 @@ function scoreStory(item, outlet) {
 
   if (item.author) score += 3;
 
+  // ── Recency ──
   if (item.pubDate) {
     const hoursAgo = (Date.now() - new Date(item.pubDate).getTime()) / 3600000;
     if (hoursAgo < 6) score += 6;
@@ -684,31 +725,11 @@ async function _doFetchAllFeeds(now) {
     });
 
   // ── Deduplication ──
-  // Extract significant words from a title (drop common short words)
-  const STOP_WORDS = new Set(['a','an','the','and','or','but','in','on','at','to','for','of','is','it','by','as','its','with','from','was','are','has','had','how','why','what','who','that','this','will','can','not','be','do','no','new','says','say','said','over','after','into','than','may','more','could','would','about','just','been','have','also','some','when','out','all','up']);
-  function titleWords(title) {
-    return title.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/)
-      .filter(w => w.length > 2 && !STOP_WORDS.has(w));
-  }
-  // Jaccard similarity on significant words
-  function titleSimilarity(wordsA, wordsB) {
-    if (wordsA.length === 0 || wordsB.length === 0) return 0;
-    const setA = new Set(wordsA);
-    const setB = new Set(wordsB);
-    let intersection = 0;
-    for (const w of setA) { if (setB.has(w)) intersection++; }
-    return intersection / (setA.size + setB.size - intersection);
-  }
-
   const deduped = [];
   const dedupedWords = [];
   for (const story of sorted) {
-    const words = titleWords(story.title);
-    // Check if this story is too similar to one already kept
-    let isDupe = false;
-    for (const existing of dedupedWords) {
-      if (titleSimilarity(words, existing) >= 0.5) { isDupe = true; break; }
-    }
+    const words = extractSignificantWords(story.title);
+    const isDupe = dedupedWords.some(existing => jaccardSimilarity(words, existing) >= DEDUP_THRESHOLD);
     if (!isDupe) {
       deduped.push(story);
       dedupedWords.push(words);
@@ -726,14 +747,14 @@ async function _doFetchAllFeeds(now) {
   const newsletterPool = analysisPool.filter((s) => NEWSLETTER_SLUGS.includes(s.outletSlug));
   const pureAnalysisPool = analysisPool.filter((s) => !NEWSLETTER_SLUGS.includes(s.outletSlug));
 
-  const newsletters = newsletterPool.slice(0, 8);
-  const analysis = pureAnalysisPool.slice(0, 10);
+  const newsletters = newsletterPool.slice(0, MAX_NEWSLETTERS);
+  const analysis = pureAnalysisPool.slice(0, MAX_ANALYSIS);
   const analysisIds = new Set([...analysis.map((s) => s.id), ...newsletters.map((s) => s.id)]);
 
   // Today's Picks: only stories from last 36 hours
   // Sort candidates by a display score that heavily rewards freshness
   // so this morning's stories beat yesterday's high-scorers
-  const FRESHNESS_CUTOFF = 36 * 3600 * 1000;
+  // Uses FRESHNESS_CUTOFF_MS from constants section
   const nowMs = Date.now();
 
   const essentialCandidates = newsPool.filter(s => {
@@ -746,7 +767,7 @@ async function _doFetchAllFeeds(now) {
     // only reported analysis/explainers can reach Today's Picks
     if (s.isOpinion) return false;
     const age = s.pubDate ? nowMs - new Date(s.pubDate).getTime() : Infinity;
-    return age < FRESHNESS_CUTOFF;
+    return age < FRESHNESS_CUTOFF_MS;
   });
 
   // Display sort: big freshness boost so recent stories surface to top
@@ -766,7 +787,7 @@ async function _doFetchAllFeeds(now) {
   const essential = [];
   const outletCount = {};
   for (const s of essentialCandidates) {
-    if (essential.length >= 13) break;
+    if (essential.length >= MAX_ESSENTIAL_PICKS) break;
     const slug = s.outletSlug;
     outletCount[slug] = (outletCount[slug] || 0);
     const cap = OUTLET_CAP[slug] || DEFAULT_CAP;
@@ -782,9 +803,9 @@ async function _doFetchAllFeeds(now) {
 
   for (const s of newsPool) {
     if (analysisIds.has(s.id) || essentialIds.has(s.id)) continue;
-    if (s.rank === 'notable' && notable.length < 15) {
+    if (s.rank === 'notable' && notable.length < MAX_NOTABLE) {
       notable.push(s);
-    } else if (s.rank === 'standard' && standard.length < 20) {
+    } else if (s.rank === 'standard' && standard.length < MAX_STANDARD) {
       standard.push(s);
     }
   }
@@ -869,7 +890,7 @@ async function _doFetchAllFeeds(now) {
       return true;
     })
     .sort((a, b) => new Date(b.pubDate || 0) - new Date(a.pubDate || 0))
-    .slice(0, 8);
+    .slice(0, MAX_CIVIC_REPORTS);
 
   // ─── Social buzz — Reddit + Google News trending ───
   let socialBuzz = [];
@@ -927,32 +948,18 @@ async function _doFetchAllFeeds(now) {
       console.log(`Google News trending fetch failed: ${gnErr.message}`);
     }
 
-    // Deduplicate across sources using same Jaccard approach
-    const buzzStopWords = new Set(['a','an','the','and','or','but','in','on','at','to','for','of','is','it','by','as','its','with','from','was','are','has','had','how','why','what','who','that','this','will','can','not','be','do','no','new','says','say','said','over','after','into','than','may','more','could','would','about','just','been','have','also','some','when','out','all','up']);
-    function buzzWords(t) {
-      return t.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2 && !buzzStopWords.has(w));
-    }
-    function buzzSimilarity(a, b) {
-      if (!a.length || !b.length) return 0;
-      const setA = new Set(a), setB = new Set(b);
-      let inter = 0;
-      for (const w of setA) { if (setB.has(w)) inter++; }
-      return inter / (setA.size + setB.size - inter);
-    }
-
-    // Sort: Reddit items by engagement, Google News by position (already ordered by relevance)
+    // Deduplicate across sources and against main story titles
     buzzItems.sort((a, b) => b.engagement - a.engagement);
 
     const kept = [];
     const keptWords = [];
     for (const item of buzzItems) {
-      const words = buzzWords(item.title);
-      if (keptWords.some(kw => buzzSimilarity(words, kw) >= 0.45)) continue;
-      // Also deduplicate against main story titles
-      if (dedupedWords.some(dw => buzzSimilarity(words, dw) >= 0.45)) continue;
+      const words = extractSignificantWords(item.title);
+      if (keptWords.some(kw => jaccardSimilarity(words, kw) >= BUZZ_DEDUP_THRESHOLD)) continue;
+      if (dedupedWords.some(dw => jaccardSimilarity(words, dw) >= BUZZ_DEDUP_THRESHOLD)) continue;
       kept.push(item);
       keptWords.push(words);
-      if (kept.length >= 6) break;
+      if (kept.length >= MAX_SOCIAL_BUZZ) break;
     }
     socialBuzz = kept;
     console.log(`  Social buzz: ${socialBuzz.length} items (${buzzItems.length} raw from Reddit + Google News)`);
@@ -973,7 +980,7 @@ async function _doFetchAllFeeds(now) {
   const latest = [...deduped]
     .filter((s) => s.pubDate)
     .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
-    .slice(0, 80);
+    .slice(0, MAX_LATEST);
 
   curatedCache = { essential, notable, standard, analysis, newsletters, headlines, podcasts, civicReports: filteredCivic, socialBuzz, latest, totalScored: deduped.length, topicCounts };
   feedCache = feeds;

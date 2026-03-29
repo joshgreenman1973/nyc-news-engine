@@ -315,13 +315,18 @@
       font-family: var(--sans); font-size: 0.7rem; color: var(--muted); margin-top: 0.35rem;
     }
 
-    /* ─── Analysis & Commentary section ─── */
-    .analysis-section {
+    /* ─── Shared card box base ─── */
+    .card-box {
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 4px;
       padding: 0;
+      overflow: hidden;
     }
+    .card-box > *:last-child { border-bottom: none; }
+    .card-box > *:hover { background: #1c1c24; transition: background 0.15s; }
+
+    /* ─── Analysis & Commentary section ─── */
 
     .analysis-item {
       padding: 1.1rem 1.4rem;
@@ -354,12 +359,7 @@
     }
 
     /* ─── Headlines box ─── */
-    .headlines-box {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 0;
-    }
+    /* .headlines-box extends .card-box */
 
     .headlines-item {
       padding: 0.7rem 1.3rem;
@@ -385,13 +385,7 @@
     }
 
     /* ─── Podcast box ─── */
-    .podcast-box {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 0;
-      overflow: hidden;
-    }
+    /* .podcast-box extends .card-box */
 
     .podcast-item {
       padding: 0.7rem 1.3rem;
@@ -401,8 +395,7 @@
       gap: 0.7rem;
       transition: background 0.15s;
     }
-    .podcast-item:last-child { border-bottom: none; }
-    .podcast-item:hover { background: #1c1c24; }
+    /* hover and last-child handled by .card-box */
 
     .podcast-name {
       font-family: var(--sans); font-size: 0.68rem; font-weight: 700;
@@ -618,20 +611,13 @@
     }
 
     /* ─── Civic reports box ─── */
-    .civic-box {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 0;
-      overflow: hidden;
-    }
+    /* .civic-box extends .card-box */
     .civic-item {
       padding: 0.7rem 1.3rem;
       border-bottom: 1px solid var(--border);
       transition: background 0.15s;
     }
-    .civic-item:last-child { border-bottom: none; }
-    .civic-item:hover { background: #1c1c24; }
+    /* hover and last-child handled by .card-box */
     .civic-org {
       font-family: var(--sans); font-size: 0.62rem; font-weight: 700;
       text-transform: uppercase; letter-spacing: 0.06em;
@@ -649,20 +635,13 @@
     }
 
     /* ─── Newsletter box ─── */
-    .newsletter-box {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 0;
-      overflow: hidden;
-    }
+    /* .newsletter-box extends .card-box */
     .newsletter-item {
       padding: 0.7rem 1.3rem;
       border-bottom: 1px solid var(--border);
       transition: background 0.15s;
     }
-    .newsletter-item:last-child { border-bottom: none; }
-    .newsletter-item:hover { background: #1c1c24; }
+    /* hover and last-child handled by .card-box */
     .newsletter-item .story-title { font-size: 0.85rem; line-height: 1.3; font-family: var(--sans); }
     .newsletter-item .story-title a { color: var(--text); }
     .newsletter-item .story-title a:hover { color: var(--accent); }
@@ -670,29 +649,20 @@
     .newsletter-item .story-meta { font-size: 0.62rem; margin-top: 0.15rem; }
 
     /* Sidebar compact newsletter */
-    .sidebar-section .newsletter-box {
-      border-color: var(--border);
-    }
+    /* newsletter-box sidebar styles covered by .sidebar-section .card-box */
     .sidebar-section .newsletter-item { padding: 0.5rem 0.85rem; }
     .sidebar-section .newsletter-item .story-outlet { font-size: 0.6rem; }
     .sidebar-section .newsletter-item .story-title { font-size: 0.8rem; line-height: 1.25; }
     .sidebar-section .newsletter-item .story-meta { font-size: 0.58rem; }
 
     /* ─── Social buzz box ─── */
-    .buzz-box {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 0;
-      overflow: hidden;
-    }
+    /* .buzz-box extends .card-box */
     .buzz-item {
       padding: 0.6rem 1rem;
       border-bottom: 1px solid var(--border);
       transition: background 0.15s;
     }
-    .buzz-item:last-child { border-bottom: none; }
-    .buzz-item:hover { background: #1c1c24; }
+    /* hover and last-child handled by .card-box */
     .buzz-item .story-title { font-size: 0.85rem; line-height: 1.3; font-family: var(--sans); }
     .buzz-item .story-title a { color: var(--text); }
     .buzz-item .story-title a:hover { color: var(--accent); }
@@ -718,11 +688,7 @@
     .buzz-discuss:hover { color: var(--accent); border-bottom-color: var(--accent); }
 
     /* Sidebar compact buzz */
-    .sidebar-section .buzz-box {
-      border-color: rgba(255,255,255,0.06);
-      border-radius: 6px;
-      background: rgba(255,255,255,0.02);
-    }
+    /* buzz-box sidebar styles covered by .sidebar-section .card-box */
     .sidebar-section .buzz-item { padding: 0.45rem 0.85rem; }
     .sidebar-section .buzz-item .story-title { font-size: 0.8rem; line-height: 1.25; }
 
@@ -804,11 +770,7 @@
     .sidebar-section .section-icon { font-size: 0.78rem; opacity: 0.8; }
 
     /* Sidebar boxes: lighter borders, tighter */
-    .sidebar-section .headlines-box,
-    .sidebar-section .analysis-section,
-    .sidebar-section .newsletter-box,
-    .sidebar-section .podcast-box,
-    .sidebar-section .civic-box {
+    .sidebar-section .card-box {
       border-color: rgba(255,255,255,0.06);
       border-radius: 6px;
       background: rgba(255,255,255,0.02);
@@ -1227,7 +1189,7 @@
       if (headlineItems.length > 0) {
         sidebar += `<div class="sidebar-section">`;
         sidebar += `<div class="section-label"><span class="section-icon">&#9889;</span> Headlines</div>`;
-        sidebar += '<div class="headlines-box">';
+        sidebar += '<div class="card-box headlines-box">';
         for (const s of headlineItems) {
           sidebar += `<div class="headlines-item">`;
           sidebar += outletLabel(s);
@@ -1241,7 +1203,7 @@
       if (analysisItems.length > 0) {
         sidebar += `<div class="sidebar-section">`;
         sidebar += `<div class="section-label"><span class="section-icon">&#128270;</span> Analysis & commentary</div>`;
-        sidebar += '<div class="analysis-section">';
+        sidebar += '<div class="card-box analysis-section">';
         for (const s of analysisItems) {
           sidebar += `<div class="analysis-item">`;
           sidebar += `<div class="analysis-left">`;
@@ -1262,7 +1224,7 @@
       if (buzzItems.length > 0) {
         sidebar += `<div class="sidebar-section">`;
         sidebar += `<div class="section-label"><span class="section-icon">&#128293;</span> Buzzing in NYC</div>`;
-        sidebar += '<div class="buzz-box">';
+        sidebar += '<div class="card-box buzz-box">';
         for (const b of buzzItems) {
           sidebar += `<div class="buzz-item">`;
           sidebar += `<div class="story-title"><a href="${esc(b.link)}" target="_blank" rel="noopener">${esc(b.title)}</a></div>`;
@@ -1286,7 +1248,7 @@
       if (newsletterItems.length > 0) {
         sidebar += `<div class="sidebar-section">`;
         sidebar += `<div class="section-label"><span class="section-icon">&#128233;</span> Policy newsletters</div>`;
-        sidebar += '<div class="newsletter-box">';
+        sidebar += '<div class="card-box newsletter-box">';
         for (const s of newsletterItems) {
           sidebar += `<div class="newsletter-item">`;
           sidebar += outletLabel(s);
@@ -1301,7 +1263,7 @@
       if (podcastItems.length > 0) {
         sidebar += `<div class="sidebar-section">`;
         sidebar += `<div class="section-label"><span class="section-icon">&#127911;</span> NYC podcasts</div>`;
-        sidebar += '<div class="podcast-box">';
+        sidebar += '<div class="card-box podcast-box">';
         for (const p of podcastItems) {
           sidebar += `<div class="podcast-item">`;
           sidebar += `<span class="podcast-name"><span class="pod-dot" style="background:${p.podcastColor}"></span>${esc(p.podcast)}</span>`;
@@ -1315,7 +1277,7 @@
       if (civicItems.length > 0) {
         sidebar += `<div class="sidebar-section">`;
         sidebar += `<div class="section-label"><span class="section-icon">&#127963;</span> Policy & watchdog reports</div>`;
-        sidebar += '<div class="civic-box">';
+        sidebar += '<div class="card-box civic-box">';
         for (const c of civicItems) {
           sidebar += `<div class="civic-item">`;
           sidebar += `<div class="civic-org"><span class="civic-dot" style="background:${c.orgColor}"></span><span style="color:${c.orgColor}">${esc(c.org)}</span></div>`;
