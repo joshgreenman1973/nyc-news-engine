@@ -460,14 +460,14 @@ const ANALYSIS_SIGNALS = [
 // Opinion signals — these mark pieces that should NEVER reach Today's Picks.
 // Distinct from analysis: a reported explainer on SEQRA is analysis but not opinion.
 // An op-ed arguing "we need to fix SEQRA" is opinion.
+// Opinion signals — only match in TITLE (not snippet) to avoid
+// false positives from quoted speech in news stories
 const OPINION_SIGNALS = [
-  'opinion', 'op-ed', 'oped', 'editorial', 'commentary',
-  'guest essay', 'column', 'perspective', 'viewpoint',
-  'letter to the editor', 'letter to',
+  'opinion:', 'op-ed:', 'oped:', 'editorial:', 'commentary:',
+  'guest essay', 'perspective:', 'viewpoint:',
+  'letter to the editor',
   'the case for', 'the case against',
-  'in defense of', 'a better way',
-  'we need to', 'it\'s time to', 'we must', 'we should',
-  'how to fix', 'how to think about',
+  'in defense of',
 ];
 const OPINION_CATEGORIES = [
   'opinion', 'commentary', 'editorial', 'op-ed', 'oped',
@@ -482,41 +482,19 @@ const ANALYSIS_CATEGORIES = [
 ];
 
 function isAnalysisStory(item, outlet) {
-  // Outlets that are almost entirely analysis/commentary/newsletters
+  // Only blanket-classify outlets that are genuinely commentary-only.
+  // For all other outlets, stories flow into the news pool and the
+  // isOpinion gate prevents opinion from reaching Today's Picks.
+  // This avoids over-classifying good policy reporting as "analysis"
+  // just because it mentions policy topics or has explanatory depth.
   if (ANALYSIS_OUTLETS.includes(outlet.slug)) return true;
-
-  const titleLower = (item.title || '').toLowerCase();
-  const snippetLower = (item.snippet || '').toLowerCase();
-  const combined = titleLower + ' ' + snippetLower;
-  const categories = (item.categories || []).map((c) =>
-    (typeof c === 'string' ? c : String(c)).toLowerCase()
-  );
-
-  // Check category tags first (most reliable signal)
-  for (const cat of categories) {
-    if (ANALYSIS_CATEGORIES.some((ac) => cat.includes(ac))) return true;
-  }
-
-  // Check title/snippet signals
-  let signalCount = 0;
-  for (const signal of ANALYSIS_SIGNALS) {
-    if (combined.includes(signal)) signalCount++;
-  }
-
-  // Need at least 2 signals from text, or 1 signal + long snippet (suggests depth)
-  if (signalCount >= 2) return true;
-  if (signalCount >= 1 && (item.snippet || '').length > 200) return true;
-
   return false;
 }
 
 // Opinion detection — stricter than analysis. Opinion pieces stay in the
 // sidebar and never reach Today's Picks. Reported analysis/explainers
 // (data-driven, investigative, explanatory) CAN reach Today's Picks.
-function isOpinionStory(item, outlet) {
-  const titleLower = (item.title || '').toLowerCase();
-  const snippetLower = (item.snippet || '').toLowerCase();
-  const combined = titleLower + ' ' + snippetLower;
+function isOpinionStory(item) {
   const categories = (item.categories || []).map((c) =>
     (typeof c === 'string' ? c : String(c)).toLowerCase()
   );
@@ -526,9 +504,11 @@ function isOpinionStory(item, outlet) {
     if (OPINION_CATEGORIES.some((oc) => cat.includes(oc))) return true;
   }
 
-  // Title/snippet signals — need clear opinion language
+  // Check opinion signals against TITLE ONLY to avoid false positives
+  // from quoted speech in news snippets (e.g. "officials say we need to...")
+  const titleLower = (item.title || '').toLowerCase();
   for (const signal of OPINION_SIGNALS) {
-    if (combined.includes(signal)) return true;
+    if (titleLower.includes(signal)) return true;
   }
 
   return false;
@@ -598,7 +578,7 @@ async function fetchFeed(outlet) {
       story.hasPolicySubstance = result.hasPolicySubstance;
       story.rank = classifyRank(story.score);
       story.isAnalysis = isAnalysisStory(story, outlet);
-      story.isOpinion = isOpinionStory(story, outlet);
+      story.isOpinion = isOpinionStory(story);
 
       return story;
     });
