@@ -1337,8 +1337,10 @@
       h += topicTagsHtml(lead.topics);
       h += `</div>`;
       if (sorted.length > 1) {
+        // Trim grid to a multiple of 3 so rows always fill completely
+        const gridCount = Math.floor((sorted.length - 1) / 3) * 3;
         h += '<div class="story-grid">';
-        for (let i = 1; i < sorted.length; i++) {
+        for (let i = 1; i <= gridCount; i++) {
           const s = sorted[i];
           h += `<div class="story-card" style="border-left: 4px solid ${s.outletColor}">`;
           h += `<span class="pick-number pick-number-sm">${chronological ? '' : (i + 1)}</span>`;

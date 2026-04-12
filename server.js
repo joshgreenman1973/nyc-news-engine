@@ -178,7 +178,7 @@ function jaccardSimilarity(wordsA, wordsB) {
 }
 
 // ─── Curation constants ──────────────────────────────────────────────
-const MAX_ESSENTIAL_PICKS = 13;
+const MAX_ESSENTIAL_PICKS = 10; // 1 lead + 9 grid cards = 3 full rows of 3
 const MAX_NOTABLE = 15;
 const MAX_STANDARD = 20;
 const MAX_LATEST = 80;
