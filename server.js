@@ -704,15 +704,29 @@ async function _doFetchAllFeeds(now) {
       return (b.snippet || '').length - (a.snippet || '').length;
     });
 
-  // ── Deduplication ──
+  // ── Deduplication (prefer the most substantive version of each story) ──
   const deduped = [];
   const dedupedWords = [];
+
+  // Substance score: prefer longer snippets, credited authors, higher-tier outlets
+  function substanceScore(s) {
+    let sub = (s.snippet || '').length;
+    if (s.author) sub += 80;
+    if (s.outletTier === 1) sub += 60;
+    else if (s.outletTier === 2) sub += 30;
+    return sub;
+  }
+
   for (const story of sorted) {
     const words = extractSignificantWords(story.title);
-    const isDupe = dedupedWords.some(existing => jaccardSimilarity(words, existing) >= DEDUP_THRESHOLD);
-    if (!isDupe) {
+    const dupeIdx = dedupedWords.findIndex(existing => jaccardSimilarity(words, existing) >= DEDUP_THRESHOLD);
+    if (dupeIdx === -1) {
       deduped.push(story);
       dedupedWords.push(words);
+    } else if (substanceScore(story) > substanceScore(deduped[dupeIdx])) {
+      // Swap in the more substantive version, keep its position
+      deduped[dupeIdx] = story;
+      dedupedWords[dupeIdx] = words;
     }
   }
 
