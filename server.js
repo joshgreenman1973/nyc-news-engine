@@ -186,7 +186,9 @@ const MAX_ANALYSIS = 10;
 const MAX_NEWSLETTERS = 8;
 const MAX_CIVIC_REPORTS = 8;
 const MAX_SOCIAL_BUZZ = 6;
-const FRESHNESS_CUTOFF_MS = 36 * 3600 * 1000;
+// Extend freshness window on weekends when fewer stories publish
+const _today = new Date().getDay();
+const FRESHNESS_CUTOFF_MS = (_today === 0 || _today === 6 ? 48 : 36) * 3600 * 1000;
 const DEDUP_THRESHOLD = 0.5;
 const BUZZ_DEDUP_THRESHOLD = 0.45;
 const NEW_STORY_THRESHOLD_MS = 2 * 3600 * 1000;
@@ -760,6 +762,17 @@ async function _doFetchAllFeeds(now) {
     // Opinion pieces (op-eds, editorials, columns) stay in the sidebar —
     // only reported analysis/explainers can reach Today's Picks
     if (s.isOpinion) return false;
+    // Substance gate: briefs without real reporting don't belong in Today's Picks
+    // A "real" author is a journalist name, not the outlet's own call letters
+    const authorTrimmed = (s.author || '').trim().toLowerCase();
+    const slugLower = (s.outletSlug || '').toLowerCase().replace(/[^a-z]/g, '');
+    const hasRealAuthor = authorTrimmed.length > 3
+      && authorTrimmed !== slugLower
+      && !['wabc', 'wcbs', 'wnbc', 'ap', 'reuters', 'staff', 'editor'].includes(authorTrimmed);
+    const snippetLen = (s.snippet || '').length;
+    // Tier 3 outlets (wire/TV) need more substance to qualify
+    const minSnippet = s.outletTier === 3 ? 140 : 100;
+    if (!hasRealAuthor && snippetLen < minSnippet) return false;
     const age = s.pubDate ? nowMs - new Date(s.pubDate).getTime() : Infinity;
     return age < FRESHNESS_CUTOFF_MS;
   });
