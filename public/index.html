@@ -872,6 +872,15 @@
   </style>
 </head>
 <body>
+  <div id="migrate-banner" style="display:none; background:#ff7c53; color:#0c0c10; text-align:center; padding:0.6rem 1.5rem; font-family:var(--sans); font-size:0.9rem; font-weight:600; position:relative;">
+    This site has a new home! Please update your bookmark to <a href="https://nycnewsengine.com" style="color:#0c0c10; text-decoration:underline;">nycnewsengine.com</a>
+    <button onclick="document.getElementById('migrate-banner').style.display='none'; localStorage.setItem('migrate-dismissed','1')" style="position:absolute; right:1rem; top:50%; transform:translateY(-50%); background:none; border:none; color:#0c0c10; font-size:1.2rem; cursor:pointer; font-weight:bold;">&times;</button>
+  </div>
+  <script>
+    if (location.hostname !== 'nycnewsengine.com' && !localStorage.getItem('migrate-dismissed')) {
+      document.getElementById('migrate-banner').style.display = 'block';
+    }
+  </script>
   <header>
     <div class="container">
       <div class="header-inner">
