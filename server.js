@@ -788,8 +788,8 @@ async function _doFetchAllFeeds(now) {
   });
 
   // Per-outlet caps: tight for high-volume outlets, generous for others
-  const OUTLET_CAP = { 'documented': 2, 'ny-post': 2, 'abc7': 2, 'el-diario': 2 };
-  const DEFAULT_CAP = 3;
+  const OUTLET_CAP = { 'documented': 2, 'ny-post': 2, 'abc7': 1, 'amny': 1, 'el-diario': 2 };
+  const DEFAULT_CAP = 2;
 
   // If not enough essential-ranked stories, promote top notables to fill the grid
   // (1 lead + 9 grid = 10 needed for 3 clean rows)
