@@ -791,6 +791,25 @@ async function _doFetchAllFeeds(now) {
   const OUTLET_CAP = { 'documented': 2, 'ny-post': 2, 'abc7': 2, 'el-diario': 2 };
   const DEFAULT_CAP = 3;
 
+  // If not enough essential-ranked stories, promote top notables to fill the grid
+  // (1 lead + 9 grid = 10 needed for 3 clean rows)
+  if (essentialCandidates.length < MAX_ESSENTIAL_PICKS) {
+    const essentialIds = new Set(essentialCandidates.map(s => s.id));
+    const notableFill = newsPool
+      .filter(s => !essentialIds.has(s.id) && !analysisIds.has(s.id) && s.rank === 'notable' && !s.isOpinion && s.hasPolicySubstance)
+      .filter(s => {
+        const authorTrimmed = (s.author || '').trim().toLowerCase();
+        const hasRealAuthor = authorTrimmed.length > 3
+          && !['wabc', 'wcbs', 'wnbc', 'ap', 'reuters', 'staff', 'editor'].includes(authorTrimmed);
+        const snippetLen = (s.snippet || '').length;
+        const minSnippet = s.outletTier === 3 ? 140 : 100;
+        return hasRealAuthor || snippetLen >= minSnippet;
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, MAX_ESSENTIAL_PICKS - essentialCandidates.length);
+    essentialCandidates.push(...notableFill);
+  }
+
   const essential = [];
   const outletCount = {};
   for (const s of essentialCandidates) {
