@@ -791,25 +791,17 @@ async function _doFetchAllFeeds(now) {
   const OUTLET_CAP = { 'documented': 2, 'ny-post': 2, 'abc7': 1, 'amny': 1, 'el-diario': 2 };
   const DEFAULT_CAP = 2;
 
-  // If not enough essential-ranked stories, promote top notables to fill the grid
-  // (1 lead + 9 grid = 10 needed for 3 clean rows)
-  if (essentialCandidates.length < MAX_ESSENTIAL_PICKS) {
-    const essentialIds = new Set(essentialCandidates.map(s => s.id));
-    const notableFill = newsPool
-      .filter(s => !essentialIds.has(s.id) && !analysisIds.has(s.id) && s.rank === 'notable' && !s.isOpinion && s.hasPolicySubstance)
-      .filter(s => {
-        const authorTrimmed = (s.author || '').trim().toLowerCase();
-        const hasRealAuthor = authorTrimmed.length > 3
-          && !['wabc', 'wcbs', 'wnbc', 'ap', 'reuters', 'staff', 'editor'].includes(authorTrimmed);
-        const snippetLen = (s.snippet || '').length;
-        const minSnippet = s.outletTier === 3 ? 140 : 100;
-        return hasRealAuthor || snippetLen >= minSnippet;
-      })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, MAX_ESSENTIAL_PICKS - essentialCandidates.length);
-    essentialCandidates.push(...notableFill);
+  // Substance check reusable for both essential and fill passes
+  function passesSubstanceGate(s) {
+    const authorTrimmed = (s.author || '').trim().toLowerCase();
+    const hasRealAuthor = authorTrimmed.length > 3
+      && !['wabc', 'wcbs', 'wnbc', 'ap', 'reuters', 'staff', 'editor'].includes(authorTrimmed);
+    const snippetLen = (s.snippet || '').length;
+    const minSnippet = s.outletTier === 3 ? 140 : 100;
+    return hasRealAuthor || snippetLen >= minSnippet;
   }
 
+  // First pass: essential-ranked stories with outlet caps
   const essential = [];
   const outletCount = {};
   for (const s of essentialCandidates) {
@@ -820,6 +812,26 @@ async function _doFetchAllFeeds(now) {
     if (outletCount[slug] < cap) {
       essential.push(s);
       outletCount[slug]++;
+    }
+  }
+
+  // Second pass: if grid isn't full, promote notable/standard stories
+  // that pass substance gates and respect outlet caps
+  if (essential.length < MAX_ESSENTIAL_PICKS) {
+    const pickedIds = new Set(essential.map(s => s.id));
+    const fillPool = newsPool
+      .filter(s => !pickedIds.has(s.id) && !analysisIds.has(s.id) && !s.isOpinion && s.hasPolicySubstance)
+      .filter(s => s.rank === 'notable' || s.rank === 'essential')
+      .filter(passesSubstanceGate)
+      .sort((a, b) => b.score - a.score);
+    for (const s of fillPool) {
+      if (essential.length >= MAX_ESSENTIAL_PICKS) break;
+      const slug = s.outletSlug;
+      const cap = OUTLET_CAP[slug] || DEFAULT_CAP;
+      if ((outletCount[slug] || 0) < cap) {
+        essential.push(s);
+        outletCount[slug] = (outletCount[slug] || 0) + 1;
+      }
     }
   }
 
