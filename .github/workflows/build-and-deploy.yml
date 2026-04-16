@@ -1,0 +1,71 @@
+name: Build and deploy to GitHub Pages
+
+on:
+  # Run on every push to main (for source-code updates + initial deploy)
+  push:
+    branches: [main]
+
+  # Run every 15 minutes to refresh the curated feed.
+  # Note: GitHub Actions schedulers are best-effort; actual interval
+  # averages 10-20 minutes during normal load.
+  schedule:
+    - cron: "*/15 * * * *"
+
+  # Allow manual triggering from the Actions tab
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Restore archive.json from previous run
+        # GitHub Pages deploys are ephemeral, so we stash the archive in a cache
+        # keyed by date so it survives between runs within a day.
+        uses: actions/cache@v4
+        with:
+          path: public/data/archive.json
+          key: archive-json-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            archive-json-${{ runner.os }}-
+
+      - name: Build data (fetch feeds, score, write JSON)
+        env:
+          NO_DB: "1"
+        run: node scripts/build-data.js
+
+      - name: Save archive.json for next run
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: public/data/archive.json
+          key: archive-json-${{ runner.os }}-${{ github.run_id }}
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

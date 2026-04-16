@@ -1,11 +1,13 @@
-const express = require('express');
 const Parser = require('rss-parser');
-const Database = require('better-sqlite3');
 const path = require('path');
 const crypto = require('crypto');
 
-const app = express();
-app.use(express.json());
+// DB is only used in server mode (local dev). Static-build mode skips SQLite.
+const SKIP_DB = process.env.NO_DB === '1';
+const IS_MODULE = require.main !== module;
+const express = IS_MODULE ? null : require('express');
+const app = express ? express() : null;
+if (app) app.use(express.json());
 
 const parser = new Parser({
   timeout: 8000,
@@ -15,44 +17,49 @@ const parser = new Parser({
   },
 });
 
-// ─── Database setup ───────────────────────────────────────────────────
-const DB_PATH = path.join(__dirname, 'archive.db');
-const db = new Database(DB_PATH);
+// ─── Database setup (server mode only) ────────────────────────────────
+let db = null;
+let purgeStmt = null;
+let upsertStmt = null;
+if (!SKIP_DB && !IS_MODULE) {
+  const Database = require('better-sqlite3');
+  const DB_PATH = path.join(__dirname, 'archive.db');
+  db = new Database(DB_PATH);
 
-db.pragma('journal_mode = WAL');
-db.exec(`
-  CREATE TABLE IF NOT EXISTS stories (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    link TEXT NOT NULL,
-    pub_date TEXT,
-    snippet TEXT,
-    author TEXT,
-    outlet_name TEXT,
-    outlet_slug TEXT,
-    outlet_tier INTEGER,
-    outlet_color TEXT,
-    score INTEGER DEFAULT 0,
-    rank TEXT,
-    topics TEXT,
-    categories TEXT,
-    fetched_at TEXT DEFAULT (datetime('now')),
-    UNIQUE(link)
-  );
-  CREATE INDEX IF NOT EXISTS idx_stories_date ON stories(pub_date DESC);
-  CREATE INDEX IF NOT EXISTS idx_stories_outlet ON stories(outlet_slug);
-  CREATE INDEX IF NOT EXISTS idx_stories_score ON stories(score DESC);
-  CREATE INDEX IF NOT EXISTS idx_stories_topics ON stories(topics);
-`);
+  db.pragma('journal_mode = WAL');
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS stories (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      link TEXT NOT NULL,
+      pub_date TEXT,
+      snippet TEXT,
+      author TEXT,
+      outlet_name TEXT,
+      outlet_slug TEXT,
+      outlet_tier INTEGER,
+      outlet_color TEXT,
+      score INTEGER DEFAULT 0,
+      rank TEXT,
+      topics TEXT,
+      categories TEXT,
+      fetched_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(link)
+    );
+    CREATE INDEX IF NOT EXISTS idx_stories_date ON stories(pub_date DESC);
+    CREATE INDEX IF NOT EXISTS idx_stories_outlet ON stories(outlet_slug);
+    CREATE INDEX IF NOT EXISTS idx_stories_score ON stories(score DESC);
+    CREATE INDEX IF NOT EXISTS idx_stories_topics ON stories(topics);
+  `);
 
-// Purge stories older than 6 months
-const purgeStmt = db.prepare(`DELETE FROM stories WHERE pub_date < datetime('now', '-6 months')`);
-const upsertStmt = db.prepare(`
-  INSERT INTO stories (id, title, link, pub_date, snippet, author, outlet_name, outlet_slug, outlet_tier, outlet_color, score, rank, topics, categories)
-  VALUES (@id, @title, @link, @pubDate, @snippet, @author, @outletName, @outletSlug, @outletTier, @outletColor, @score, @rank, @topics, @categories)
-  ON CONFLICT(link) DO UPDATE SET
-    score = @score, rank = @rank, topics = @topics, fetched_at = datetime('now')
-`);
+  purgeStmt = db.prepare(`DELETE FROM stories WHERE pub_date < datetime('now', '-6 months')`);
+  upsertStmt = db.prepare(`
+    INSERT INTO stories (id, title, link, pub_date, snippet, author, outlet_name, outlet_slug, outlet_tier, outlet_color, score, rank, topics, categories)
+    VALUES (@id, @title, @link, @pubDate, @snippet, @author, @outletName, @outletSlug, @outletTier, @outletColor, @score, @rank, @topics, @categories)
+    ON CONFLICT(link) DO UPDATE SET
+      score = @score, rank = @rank, topics = @topics, fetched_at = datetime('now')
+  `);
+}
 
 // ─── Outlet definitions ───────────────────────────────────────────────
 const OUTLETS = [
@@ -630,6 +637,7 @@ async function fetchFeed(outlet) {
 
 // ─── Archive helpers ──────────────────────────────────────────────────
 function archiveStories(stories) {
+  if (!db || !upsertStmt) return; // No-op when running without DB (static-build mode)
   const insert = db.transaction((items) => {
     for (const s of items) {
       upsertStmt.run({
@@ -675,8 +683,8 @@ async function _doFetchAllFeeds(now) {
 
   console.log(`[${new Date().toLocaleTimeString()}] Refreshing all feeds...`);
 
-  // Purge old archive entries
-  purgeStmt.run();
+  // Purge old archive entries (no-op in static-build mode)
+  if (purgeStmt) purgeStmt.run();
 
   const results = await Promise.allSettled(OUTLETS.map(fetchFeed));
 
@@ -1027,6 +1035,12 @@ async function _doFetchAllFeeds(now) {
   console.log(`  Curated: ${essential.length} essential, ${analysis.length} analysis, ${newsletters.length} newsletters, ${notable.length} notable out of ${deduped.length} stories`);
   return { feeds, curated: curatedCache };
 }
+
+// ─── Module exports (for scripts/build-data.js) ───────────────────────
+module.exports = { fetchAllFeeds, OUTLETS };
+
+// When loaded as a module (not run directly), skip the Express routes
+if (IS_MODULE) return;
 
 // ─── API routes ───────────────────────────────────────────────────────
 
