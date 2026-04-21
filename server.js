@@ -857,13 +857,19 @@ async function _doFetchAllFeeds(now) {
   }
 
   // "What's Grabbing Headlines" — lead story from major papers & TV
+  // Skip gossip/fluff: pick the most recent story that doesn't trip soft-news or shallow signals
   const headlineOutlets = ['daily-news', 'ny-post', 'nytimes', 'ny1', 'abc7', 'cbsny'];
+  const isFluff = (item) => {
+    const combined = `${item.title || ''} ${item.snippet || item.contentSnippet || ''}`.toLowerCase();
+    if (SOFT_NEWS_SIGNALS.some(s => combined.includes(s.toLowerCase()))) return true;
+    if (countSignalHits(combined, SHALLOW_SIGNALS) >= 2) return true;
+    return false;
+  };
   const headlines = [];
   for (const slug of headlineOutlets) {
     const feed = feeds[slug];
     if (!feed || feed.error || !feed.items.length) continue;
-    // Take the most recent story (already sorted by recency from RSS)
-    const lead = feed.items[0];
+    const lead = feed.items.find(it => !isFluff(it)) || feed.items[0];
     if (lead) headlines.push(lead);
   }
 
