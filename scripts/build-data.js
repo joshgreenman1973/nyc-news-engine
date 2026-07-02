@@ -118,7 +118,12 @@ async function main() {
   console.log(`✓ Wrote meta.json`);
 }
 
-main().catch(err => {
+main().then(() => {
+  // All outputs are written synchronously above. Exit explicitly so a
+  // straggling feed socket can't keep the process alive — without this,
+  // a hung RSS server stalls the GitHub Action until its 10-min timeout.
+  process.exit(0);
+}).catch(err => {
   console.error('Build failed:', err);
   process.exit(1);
 });

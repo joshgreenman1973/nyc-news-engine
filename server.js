@@ -324,6 +324,16 @@ const SHALLOW_SIGNALS = [
   'r&b', 'hip hop', 'hip-hop', 'rock star',
 ];
 
+// Listings / roundup features (weekly calendars, link roundups) — checked
+// against TITLE only. They're stuffed with policy keywords so they score
+// like reporting, but they're aggregation, not depth. Penalty is sized to
+// knock a keyword-rich calendar out of Today's Picks (essential ≥ 35).
+const ROUNDUP_SIGNALS = [
+  'calendar', 'week ahead', 'weekly roundup', 'news roundup',
+  'daily roundup', 'morning links', 'evening links', 'link roundup',
+  'what to watch this week', 'this week in',
+];
+
 // Soft-news / lifestyle / sports signals → heavy penalty to keep out of Today's Picks
 const SOFT_NEWS_SIGNALS = [
   'kids reporter', 'yes network', 'celebrity', 'real housewives',
@@ -420,6 +430,7 @@ function scoreStory(item, outlet) {
   // ── Penalties ──
   score -= countSignalHits(combined, SHALLOW_SIGNALS) * 12;
   if (SOFT_NEWS_SIGNALS.some(s => hasKeyword(combined, s))) score -= 20;
+  if (ROUNDUP_SIGNALS.some(s => hasKeyword(item.title || '', s))) score -= 25;
 
   // ── NYC locality ──
   const link = (item.link || '').toLowerCase();
@@ -664,7 +675,8 @@ async function fetchFeed(outlet) {
     }
 
     // For national outlets, filter to NYC-relevant stories only
-    const nycOnlyFilter = ['propublica', 'bolts', 'the-trace', 'the-markup', 'nymag', 'new-yorker', 'wsj', 'ny-post', 'abc7', 'pix11', 'amny'];
+    // 'nytimes' included because the NY-region feed mixes in NJ/suburban stories
+    const nycOnlyFilter = ['nytimes', 'propublica', 'bolts', 'the-trace', 'the-markup', 'nymag', 'new-yorker', 'wsj', 'ny-post', 'abc7', 'pix11', 'amny'];
     let filtered = items;
     if (nycOnlyFilter.includes(outlet.slug)) {
       const NYC_SIGNALS = [
