@@ -65,12 +65,21 @@ async function main() {
   }
 
   const cutoff = now.getTime() - ARCHIVE_RETENTION_MS;
+  // Truncate snippets in the archive to keep the file size manageable —
+  // archive search matches on titles + snippet leads, so this preserves
+  // most search utility at a fraction of the payload.
+  const ARCHIVE_SNIPPET_LEN = 180;
   const mergedArchive = Array.from(byId.values())
     .filter(s => {
       if (!s.pubDate) return true; // keep items without a date
       const t = new Date(s.pubDate).getTime();
       return Number.isFinite(t) ? t >= cutoff : true;
     })
+    .map(s => (
+      s.snippet && s.snippet.length > ARCHIVE_SNIPPET_LEN
+        ? { ...s, snippet: s.snippet.slice(0, ARCHIVE_SNIPPET_LEN).trimEnd() + '…' }
+        : s
+    ))
     .sort((a, b) => {
       const ta = a.pubDate ? new Date(a.pubDate).getTime() : 0;
       const tb = b.pubDate ? new Date(b.pubDate).getTime() : 0;

@@ -125,31 +125,62 @@ const CIVIC_ORGS = [
   { name: 'Center for an Urban Future', slug: 'cuf', url: 'https://news.google.com/rss/search?q=site:nycfuture.org+when:60d&hl=en-US&gl=US&ceid=US:en', site: 'https://nycfuture.org', color: '#ca8a04' },
 ];
 
+// ─── Keyword matching ─────────────────────────────────────────────────
+// Whole-word matching so short keywords can't fire inside longer words
+// ("ice" in "police", "bus" in "business", "pet" in "petition").
+// Rules:
+//   - A trailing '*' marks a prefix stem: 'investigat*' matches
+//     investigation, investigative, investigated, etc.
+//   - ALL-CAPS keywords (ICE, DOE, TPS, MTA...) match case-sensitively as
+//     exact words, so "DOE" can't match "does" and "ICE" can't match "ice".
+//   - Everything else matches case-insensitively and tolerates simple
+//     plurals ('tenant' matches "tenants", 'bias' matches "biases").
+const KEYWORD_RE_CACHE = new Map();
+function keywordRegex(kw) {
+  let re = KEYWORD_RE_CACHE.get(kw);
+  if (re) return re;
+  let body = kw;
+  const isPrefix = body.endsWith('*');
+  if (isPrefix) body = body.slice(0, -1);
+  const isAcronym = /^[A-Z0-9+&-]{2,}$/.test(body) && /[A-Z]/.test(body);
+  const escaped = body.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const lead = /^\w/.test(body) ? '\\b' : '';
+  let trail = '';
+  if (!isPrefix && /\w$/.test(body)) trail = isAcronym ? '\\b' : '(?:e?s)?\\b';
+  re = new RegExp(lead + escaped + trail, isAcronym ? '' : 'i');
+  KEYWORD_RE_CACHE.set(kw, re);
+  return re;
+}
+function hasKeyword(text, kw) { return keywordRegex(kw).test(text); }
+
 // ─── Topic classification ─────────────────────────────────────────────
 const TOPIC_RULES = [
   { topic: 'Housing', keywords: ['housing', 'rent', 'tenant', 'landlord', 'eviction', 'affordable housing', 'NYCHA', 'public housing', 'shelter', 'zoning', 'rezoning', 'real estate', 'apartment', 'lease', 'homeless', 'unhoused', 'voucher'] },
   { topic: 'Education', keywords: ['school', 'education', 'student', 'teacher', 'DOE', 'charter', 'college', 'university', 'CUNY', 'SUNY', 'pre-k', 'curriculum', 'chancellor', 'class size', 'graduation'] },
-  { topic: 'Immigration', keywords: ['immigration', 'immigrant', 'migrant', 'asylum', 'ICE', 'deportation', 'sanctuary', 'refugee', 'TPS', 'undocumented', 'border', 'DACA'] },
-  { topic: 'Criminal Justice', keywords: ['criminal justice', 'police', 'NYPD', 'prosecution', 'district attorney', 'prison', 'jail', 'Rikers', 'bail', 'sentencing', 'parole', 'probation', 'incarcerat'] },
+  { topic: 'Immigration', keywords: ['immigration', 'immigrant', 'migrant', 'asylum', 'ICE', 'deportation', 'sanctuary', 'refugee', 'TPS', 'undocumented', 'border', 'DACA',
+    // Spanish (El Diario, Documented)
+    'inmigrante', 'inmigración', 'migrante', 'asilo', 'deportación'] },
+  { topic: 'Criminal Justice', keywords: ['criminal justice', 'police', 'NYPD', 'prosecution', 'district attorney', 'prison', 'jail', 'Rikers', 'bail', 'sentencing', 'parole', 'probation', 'incarcerat*'] },
   { topic: 'Public Safety', keywords: ['crime', 'shooting', 'stabbing', 'assault', 'robbery', 'murder', 'homicide', 'gun violence', 'safety', 'gang'] },
-  { topic: 'Transit', keywords: ['transit', 'MTA', 'subway', 'bus', 'commut', 'congestion pricing', 'train', 'rail', 'bike lane', 'cyclist', 'pedestrian', 'traffic', 'transport', 'streetscape', 'speed camera', 'Vision Zero', 'DOT', 'Citibike', 'ferry', 'e-bike', 'scooter', 'crosswalk', 'sidewalk'] },
+  { topic: 'Transit', keywords: ['transit', 'MTA', 'subway', 'bus', 'commut*', 'congestion pricing', 'train', 'rail', 'bike lane', 'cyclist', 'pedestrian', 'traffic', 'transport*', 'streetscape', 'speed camera', 'Vision Zero', 'DOT', 'Citibike', 'ferry', 'e-bike', 'scooter', 'crosswalk', 'sidewalk'] },
   { topic: 'Health', keywords: ['health', 'hospital', 'mental health', 'opioid', 'fentanyl', 'overdose', 'COVID', 'pandemic', 'clinic', 'Medicaid', 'insurance', 'public health', 'H+H'] },
   { topic: 'Climate & Environment', keywords: ['climate', 'environment', 'flooding', 'clean energy', 'emissions', 'pollution', 'air quality', 'green', 'sustainability', 'resiliency', 'waste', 'recycling', 'composting'] },
-  { topic: 'City Hall', keywords: ['mayor', 'city hall', 'city council', 'Adams', 'municipal', 'city budget', 'commissioner', 'agency', 'administration'] },
+  { topic: 'City Hall', keywords: ['mayor', 'city hall', 'city council', 'Mamdani', 'Adams', 'municipal', 'city budget', 'commissioner', 'agency', 'administration'] },
   { topic: 'Albany & State', keywords: ['Albany', 'governor', 'Hochul', 'state legislature', 'state senate', 'assembly', 'state budget', 'New York State'] },
   { topic: 'Labor', keywords: ['labor', 'union', 'worker', 'wage', 'strike', 'gig economy', 'minimum wage', 'employment', 'unemployment'] },
-  { topic: 'Investigations', keywords: ['investigation', 'investigat', 'exclusive', 'obtained', 'documents show', 'records reveal', 'FOIL', 'FOIA', 'uncovered', 'corruption', 'fraud', 'indicted'] },
+  { topic: 'Investigations', keywords: ['investigat*', 'exclusive', 'obtained', 'documents show', 'records reveal*', 'FOIL', 'FOIA', 'uncovered', 'corruption', 'fraud', 'indicted'] },
   { topic: 'Race & Equity', keywords: ['race', 'racial', 'racism', 'equity', 'discrimination', 'segregation', 'diversity', 'DEI', 'reparations', 'civil rights', 'hate crime', 'bias'] },
   { topic: 'Culture & Community', keywords: ['community', 'neighborhood', 'borough', 'arts', 'culture', 'restaurant', 'local business', 'small business', 'library', 'park'] },
 ];
 
 function classifyTopics(title, snippet, categories) {
-  const combined = `${title} ${snippet} ${(categories || []).join(' ')}`.toLowerCase();
+  // Raw (not lowercased) so acronym keywords can match case-sensitively
+  const combined = `${title} ${snippet} ${(categories || []).join(' ')}`;
   const matched = [];
 
   for (const rule of TOPIC_RULES) {
     for (const kw of rule.keywords) {
-      if (combined.includes(kw.toLowerCase())) {
+      if (hasKeyword(combined, kw)) {
         if (!matched.includes(rule.topic)) {
           matched.push(rule.topic);
         }
@@ -213,7 +244,7 @@ const POLICY_TOPICS = [
   'child welfare', 'foster care', 'juvenile justice',
   'opioid', 'fentanyl', 'overdose', 'harm reduction',
   'reentry', 'recidivism', 'parole', 'probation', 'rikers',
-  'food insecurity', 'food pantry', 'snap', 'benefits',
+  'food insecurity', 'food pantry', 'SNAP', 'benefits',
   'disability', 'medicaid', 'health care', 'hospital',
   'poverty', 'low-income', 'cost of living', 'affordability',
   'migrant', 'immigration', 'asylum',
@@ -232,15 +263,15 @@ const POLICY_TOPICS = [
 
 // Investigative signals — strongest reward: original reporting, documents, accountability
 const INVESTIGATIVE_SIGNALS = [
-  'investigation', 'investigat', 'obtained', 'documents show',
-  'records reveal', 'records obtained', 'documents obtained',
+  'investigat*', 'obtained', 'documents show',
+  'records reveal*', 'records obtained', 'documents obtained',
   'exposed', 'uncovered', 'accountability',
   'FOIA', 'FOIL', 'public records',
   'months-long', 'year-long', 'yearlong', 'multi-year',
   'series', 'part 1', 'part 2', 'part 3',
   'special report', 'exclusive',
-  'whistleblow', 'misconduct',
-  'data analysis', 'data shows', 'data reveal',
+  'whistleblow*', 'misconduct',
+  'data analysis', 'data shows', 'data reveal*',
   'first reported', 'first to report',
 ];
 
@@ -322,7 +353,7 @@ const SORTED_POLICY_TOPICS = [...POLICY_TOPICS].sort((a, b) => b.length - a.leng
 const NYC_LOCALITY = [
   'new york city', 'nyc', 'city hall', 'city council', 'albany',
   'brooklyn', 'manhattan', 'queens', 'bronx', 'staten island',
-  'nypd', 'mta', 'nycha', 'rikers', 'adams', 'hochul',
+  'nypd', 'mta', 'nycha', 'rikers', 'mamdani', 'adams', 'hochul',
   'de blasio', 'comptroller', 'public advocate',
 ];
 
@@ -330,7 +361,7 @@ const NYC_LOCALITY = [
 function countSignalHits(text, signals) {
   let hits = 0;
   for (const s of signals) {
-    if (text.includes(s.toLowerCase())) hits++;
+    if (hasKeyword(text, s)) hits++;
   }
   return hits;
 }
@@ -341,7 +372,7 @@ function countPolicyHits(text) {
   let hits = 0;
   for (const s of SORTED_POLICY_TOPICS) {
     const lower = s.toLowerCase();
-    if (!text.includes(lower)) continue;
+    if (!hasKeyword(text, s)) continue;
     if (matched.some(m => m.includes(lower))) continue;
     matched.push(lower);
     hits++;
@@ -351,7 +382,8 @@ function countPolicyHits(text) {
 
 function scoreStory(item, outlet) {
   let score = 0;
-  const combined = `${item.title} ${item.snippet || ''}`.toLowerCase();
+  // Raw (not lowercased) so acronym keywords can match case-sensitively
+  const combined = `${item.title} ${item.snippet || ''}`;
 
   // ── Outlet tier ──
   if (outlet.tier === 1) score += 12;
@@ -387,7 +419,7 @@ function scoreStory(item, outlet) {
 
   // ── Penalties ──
   score -= countSignalHits(combined, SHALLOW_SIGNALS) * 12;
-  if (SOFT_NEWS_SIGNALS.some(s => combined.includes(s.toLowerCase()))) score -= 20;
+  if (SOFT_NEWS_SIGNALS.some(s => hasKeyword(combined, s))) score -= 20;
 
   // ── NYC locality ──
   const link = (item.link || '').toLowerCase();
@@ -399,8 +431,8 @@ function scoreStory(item, outlet) {
   else if (nycHits >= 1) score += 2;
 
   // ── State-city intersection (+10 when both mayor and governor appear) ──
-  const mentionsMayor = combined.includes('mayor') || combined.includes('adams') || combined.includes('city hall');
-  const mentionsGovernor = combined.includes('governor') || combined.includes('hochul') || combined.includes('albany');
+  const mentionsMayor = hasKeyword(combined, 'mayor') || hasKeyword(combined, 'mamdani') || hasKeyword(combined, 'adams') || hasKeyword(combined, 'city hall');
+  const mentionsGovernor = hasKeyword(combined, 'governor') || hasKeyword(combined, 'hochul') || hasKeyword(combined, 'albany');
   if (mentionsMayor && mentionsGovernor) score += 10;
 
   // ── Story quality signals ──
@@ -510,20 +542,38 @@ function isOpinionStory(item) {
 
   // Category tags are the strongest signal
   for (const cat of categories) {
-    if (OPINION_CATEGORIES.some((oc) => cat.includes(oc))) return true;
+    if (OPINION_CATEGORIES.some((oc) => hasKeyword(cat, oc))) return true;
   }
 
   // Check opinion signals against TITLE ONLY to avoid false positives
   // from quoted speech in news snippets (e.g. "officials say we need to...")
-  const titleLower = (item.title || '').toLowerCase();
+  const title = item.title || '';
   for (const signal of OPINION_SIGNALS) {
-    if (titleLower.includes(signal)) return true;
+    if (hasKeyword(title, signal)) return true;
   }
 
   return false;
 }
 
 // ─── Feed fetching ────────────────────────────────────────────────────
+// Strip a trailing " - Outlet Name" / " | Outlet Name" suffix some feeds
+// append to every headline (e.g. " - New York Daily News"). Only strips
+// when the tail matches the story's own outlet, so hyphenated titles survive.
+function cleanTitle(raw, outletName) {
+  const t = (raw || '').trim();
+  const m = t.match(/^(.{10,}?)\s+[-–—|]\s+([^-–—|]{3,60})$/);
+  if (!m) return t;
+  const tail = m[2].trim().toLowerCase();
+  const name = (outletName || '').toLowerCase();
+  // Suffixes are "<qualifier> <name>" ("New York Daily News" for "Daily News"),
+  // so require the tail to END with the outlet name — a title that merely
+  // mentions the outlet mid-tail is left alone.
+  if (name && (tail === name || tail.endsWith(name))) {
+    return m[1].trim();
+  }
+  return t;
+}
+
 function cleanSnippet(text) {
   let clean = text
     .replace(/<[^>]*>/g, '')
@@ -553,7 +603,7 @@ async function fetchFeed(outlet) {
   try {
     const feed = await parser.parseURL(outlet.url);
     let items = (feed.items || []).slice(0, 20).map((item) => {
-      const title = item.title || 'Untitled';
+      const title = cleanTitle(item.title, outlet.name) || 'Untitled';
       const link = item.link || '';
       const snippet = cleanSnippet(item.contentSnippet || item.content || '');
       const author = item.creator || item['dc:creator'] || item.author || null;
@@ -619,12 +669,12 @@ async function fetchFeed(outlet) {
     if (nycOnlyFilter.includes(outlet.slug)) {
       const NYC_SIGNALS = [
         'new york', 'nyc', 'brooklyn', 'manhattan', 'queens', 'bronx', 'staten island',
-        'city council', 'city hall', 'albany', 'cuomo', 'hochul', 'adams',
+        'city council', 'city hall', 'albany', 'mamdani', 'cuomo', 'hochul', 'adams',
         'nypd', 'mta', 'rikers', 'nycha', 'de blasio', 'gotham',
       ];
       filtered = items.filter((s) => {
-        const text = `${s.title} ${s.snippet || ''} ${(s.categories || []).join(' ')}`.toLowerCase();
-        return NYC_SIGNALS.some((sig) => text.includes(sig));
+        const text = `${s.title} ${s.snippet || ''} ${(s.categories || []).join(' ')}`;
+        return NYC_SIGNALS.some((sig) => hasKeyword(text, sig));
       });
     }
 
@@ -860,8 +910,8 @@ async function _doFetchAllFeeds(now) {
   // Skip gossip/fluff: pick the most recent story that doesn't trip soft-news or shallow signals
   const headlineOutlets = ['daily-news', 'ny-post', 'nytimes', 'ny1', 'abc7', 'cbsny'];
   const isFluff = (item) => {
-    const combined = `${item.title || ''} ${item.snippet || item.contentSnippet || ''}`.toLowerCase();
-    if (SOFT_NEWS_SIGNALS.some(s => combined.includes(s.toLowerCase()))) return true;
+    const combined = `${item.title || ''} ${item.snippet || item.contentSnippet || ''}`;
+    if (SOFT_NEWS_SIGNALS.some(s => hasKeyword(combined, s))) return true;
     if (countSignalHits(combined, SHALLOW_SIGNALS) >= 2) return true;
     return false;
   };
