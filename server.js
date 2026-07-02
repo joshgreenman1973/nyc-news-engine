@@ -281,8 +281,11 @@ const EXPLANATORY_SIGNALS = [
   'how it works', 'what it means', 'why it matters',
   'deep dive', 'in depth', 'in-depth',
   'behind the', 'inside the', 'the story behind',
-  'long read', 'feature', 'reported essay',
-  'first-person', 'oral history', 'profile',
+  // NOTE: 'feature' and 'profile' removed — 'feature' matches the common
+  // verb ("will feature a meeting") and 'profile' matches any personnel
+  // item, inflating listicles/columns into Today's Picks.
+  'long read', 'reported essay',
+  'first-person', 'oral history',
   'how we got here', 'a closer look', 'unpacking',
   'the case for', 'the case against',
   'what went wrong', 'lessons from', 'what happened',
@@ -333,6 +336,12 @@ const ROUNDUP_SIGNALS = [
   'daily roundup', 'morning links', 'evening links', 'link roundup',
   'what to watch this week', 'this week in',
 ];
+
+// Recurring date-stamped features ("On the Docket: ..., July 2",
+// "NYC Housing Calendar, June 30-July 6") are roundups by definition.
+// Comma before the date is required so a news headline that merely ends
+// with a date ("...to vote on the budget June 30") isn't penalized.
+const DATED_FEATURE_RE = /,\s+(Jan(uary)?|Feb(ruary)?|Mar(ch)?|Apr(il)?|May|June?|July?|Aug(ust)?|Sept?(ember)?|Oct(ober)?|Nov(ember)?|Dec(ember)?)\.?\s+\d{1,2}(\s*[-–—]\s*(\w+\.?\s*)?\d{1,2})?\s*$/i;
 
 // Soft-news / lifestyle / sports signals → heavy penalty to keep out of Today's Picks
 const SOFT_NEWS_SIGNALS = [
@@ -430,7 +439,8 @@ function scoreStory(item, outlet) {
   // ── Penalties ──
   score -= countSignalHits(combined, SHALLOW_SIGNALS) * 12;
   if (SOFT_NEWS_SIGNALS.some(s => hasKeyword(combined, s))) score -= 20;
-  if (ROUNDUP_SIGNALS.some(s => hasKeyword(item.title || '', s))) score -= 25;
+  if (ROUNDUP_SIGNALS.some(s => hasKeyword(item.title || '', s))
+      || DATED_FEATURE_RE.test(item.title || '')) score -= 25;
 
   // ── NYC locality ──
   const link = (item.link || '').toLowerCase();
@@ -562,6 +572,12 @@ function isOpinionStory(item) {
   for (const signal of OPINION_SIGNALS) {
     if (hasKeyword(title, signal)) return true;
   }
+
+  // Recurring columns self-identify in the snippet lead ("amNewYork Law's
+  // weekly column focused on..."). The methodology promises columns never
+  // reach Today's Picks, so honor the self-label too.
+  const snippetLead = (item.snippet || '').slice(0, 160);
+  if (hasKeyword(snippetLead, 'weekly column') || hasKeyword(snippetLead, 'monthly column')) return true;
 
   return false;
 }
