@@ -86,6 +86,37 @@ async function main() {
       return tb - ta;
     });
 
+  // A systemic outage (network down, DNS, a bad deploy) and a genuinely quiet
+  // news hour both end here with nothing to show. The difference is that one of
+  // them must not stamp a fresh "updated just now" over empty picks and exit
+  // clean — that reads as healthy forever while the site rots.
+  const feedList = Object.values(feeds).filter(Boolean);
+  const outletsWithItems = feedList.filter(f => f.items && f.items.length > 0).length;
+  const outletsErrored = feedList.filter(f => f.error).length;
+
+  if (curated.totalScored === 0 || outletsWithItems === 0) {
+    console.error(
+      `Refusing to publish: ${curated.totalScored} stories scored across ` +
+      `${outletsWithItems}/${feedList.length} outlets (${outletsErrored} errored). ` +
+      `Treating this as a broken fetch, not a quiet news day. Existing data left in place.`,
+    );
+    process.exit(1);
+  }
+
+  // Some outlets always fail (paywalls, flaky feeds) — 6 of 43 is normal. Most
+  // of them failing at once is infrastructure, not journalism.
+  if (outletsErrored > feedList.length / 2) {
+    console.error(
+      `Refusing to publish: ${outletsErrored}/${feedList.length} outlets errored. ` +
+      `That's a systemic failure, not scattered feed trouble.`,
+    );
+    process.exit(1);
+  }
+
+  if (outletsErrored > 0) {
+    console.warn(`Note: ${outletsErrored}/${feedList.length} outlets errored this run.`);
+  }
+
   // Write outputs
   fs.writeFileSync(
     CURATED_PATH,
