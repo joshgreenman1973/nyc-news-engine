@@ -18,6 +18,8 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  # Lets the workflow delete the duplicate artifacts a retried upload leaves behind.
+  actions: write
 
 concurrency:
   group: pages
@@ -66,6 +68,30 @@ jobs:
         with:
           path: public
 
+      # When the artifact finalize call hangs, GitHub's backend retries it and
+      # each retry registers another artifact under the same name. deploy-pages
+      # then refuses to pick one ("Multiple artifacts named github-pages were
+      # unexpectedly found"). All copies are byte-identical, so keep the newest.
+      - name: Drop duplicate Pages artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dupes=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+            --jq '[.artifacts[] | select(.name == "github-pages")]
+                  | sort_by(.created_at) | reverse | .[1:] | .[].id')
+          for id in $dupes; do
+            echo "Deleting duplicate github-pages artifact $id"
+            gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id"
+          done
+
       - name: Deploy to GitHub Pages
         id: deployment
+        uses: actions/deploy-pages@v4
+        # Pages has answered with 503s, deploy timeouts and "Failed to get ID
+        # Token" often enough to redden the run for reasons nothing in this repo
+        # caused. Each cleared on its own, so try a second time before failing.
+        continue-on-error: true
+
+      - name: Retry deploy once
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
