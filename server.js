@@ -353,7 +353,8 @@ const ROUNDUP_SIGNALS = [
   'daily roundup', 'morning links', 'evening links', 'link roundup',
   'what to watch this week', 'this week in',
   // Documented's daily digest ("Immigration News Today: X, plus Y and Z")
-  'immigration news today',
+  // and Gothamist's daily links post ("Early Addition: …")
+  'immigration news today', 'early addition',
 ];
 
 // Recurring date-stamped features ("On the Docket: ..., July 2",
