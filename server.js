@@ -10,7 +10,7 @@ const app = express ? express() : null;
 if (app) app.use(express.json());
 
 const parser = new Parser({
-  timeout: 8000,
+  timeout: 12000,
   headers: {
     Accept: 'application/rss+xml, application/xml, text/xml, */*',
     'User-Agent': 'Mozilla/5.0 (compatible; NYCNewsEngine/1.0)',
@@ -62,55 +62,68 @@ if (!SKIP_DB && !IS_MODULE) {
 }
 
 // ─── Outlet definitions ───────────────────────────────────────────────
+// Google News search feed — used for outlets with no working RSS, and as a
+// fallback for feeds that refuse GitHub's runners (Substack, Brooklyn Eagle).
+function gn(query) {
+  return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
+}
+
+// Vital City's site answers GitHub's runners with a bot check instead of RSS,
+// so its feed failed on every build. The Ghost Content API on the ghost.io
+// host does answer, and it carries every post (the site's /commentary/rss/
+// leaves out the policy series and special issues). The key is the site's
+// public read-only search key.
+const VITAL_CITY_GHOST_API = 'https://vital-city.ghost.io/ghost/api/content/posts/?key=dd8e178e9ddfc883537e71dd07&limit=20&include=authors,tags&order=published_at%20desc';
+
 const OUTLETS = [
   { name: 'THE CITY', slug: 'the-city', tier: 1, url: 'https://www.thecity.nyc/feed/', site: 'https://www.thecity.nyc', color: '#1a5632', tagline: 'Nonprofit investigative newsroom' },
-  { name: 'Vital City', slug: 'vital-city', tier: 1, url: 'https://www.vitalcitynyc.org/commentary/rss/', site: 'https://www.vitalcitynyc.org', color: '#e63b2e', tagline: 'Urban policy & ideas' },
+  { name: 'Vital City', slug: 'vital-city', tier: 1, ghostApi: VITAL_CITY_GHOST_API, url: 'https://www.vitalcitynyc.org/archive/rss/', site: 'https://www.vitalcitynyc.org', color: '#e63b2e', tagline: 'Urban policy & ideas' },
   { name: 'Hell Gate', slug: 'hell-gate', tier: 1, url: 'https://hellgatenyc.com/all-posts/rss/', site: 'https://hellgatenyc.com', color: '#ff4500', tagline: 'Worker-owned NYC journalism' },
   { name: 'Gothamist', slug: 'gothamist', tier: 1, url: 'https://gothamist.com/feed', site: 'https://gothamist.com', color: '#de2d26', tagline: 'WNYC-backed local news' },
   { name: 'New York Focus', slug: 'ny-focus', tier: 1, url: 'https://nysfocus.com/feed', site: 'https://nysfocus.com', color: '#2c5282', tagline: 'State politics & accountability' },
   { name: 'Documented', slug: 'documented', tier: 1, url: 'https://documentedny.com/feed/', site: 'https://documentedny.com', color: '#2b6cb0', tagline: 'Immigration in New York' },
-  { name: 'Chalkbeat NYC', slug: 'chalkbeat', tier: 1, url: 'https://www.chalkbeat.org/arc/outboundfeeds/rss/category/new-york/', site: 'https://www.chalkbeat.org/newyork/', color: '#6b46c1', tagline: 'Education reporting' },
+  { name: 'Chalkbeat NYC', slug: 'chalkbeat', tier: 1, url: 'https://www.chalkbeat.org/arc/outboundfeeds/rss/category/newyork/', site: 'https://www.chalkbeat.org/newyork/', color: '#6b46c1', tagline: 'Education reporting' },
   { name: 'City Limits', slug: 'city-limits', tier: 1, url: 'https://citylimits.org/feed/', site: 'https://citylimits.org', color: '#d97706', tagline: 'Nonprofit policy journalism since 1976' },
   { name: 'Streetsblog NYC', slug: 'streetsblog', tier: 1, url: 'https://nyc.streetsblog.org/feed', site: 'https://nyc.streetsblog.org', color: '#059669', tagline: 'Transit & street safety policy' },
   { name: 'Bolts', slug: 'bolts', tier: 1, url: 'https://boltsmag.org/feed/', site: 'https://boltsmag.org', color: '#7c3aed', tagline: 'Criminal justice & local democracy' },
   { name: 'The Trace', slug: 'the-trace', tier: 1, url: 'https://thetrace.org/feed/', site: 'https://thetrace.org', color: '#b91c1c', tagline: 'Gun violence reporting' },
   { name: 'The Markup', slug: 'the-markup', tier: 1, url: 'https://themarkup.org/feeds/rss.xml', site: 'https://themarkup.org', color: '#374151', tagline: 'Tech & algorithmic accountability' },
-  { name: 'The Marshall Project', slug: 'marshall-project', tier: 1, url: null, site: 'https://www.themarshallproject.org', color: '#92400e', tagline: 'Criminal justice journalism' },
+  { name: 'The Marshall Project', slug: 'marshall-project', tier: 1, url: 'https://www.themarshallproject.org/rss/recent.rss', site: 'https://www.themarshallproject.org', color: '#92400e', tagline: 'Criminal justice journalism' },
   { name: 'New York Magazine', slug: 'nymag', tier: 1, url: 'https://feeds.feedburner.com/nymag/intelligencer', site: 'https://nymag.com/intelligencer', color: '#e11d48', tagline: 'City life, politics & culture' },
   { name: 'The New Yorker', slug: 'new-yorker', tier: 1, url: 'https://www.newyorker.com/feed/news', site: 'https://www.newyorker.com', color: '#1a1a1a', tagline: 'Longform & essays' },
   // Tier 2 — Major local papers & metro coverage
   { name: 'Daily News', slug: 'daily-news', tier: 2, url: 'https://news.google.com/rss/search?q=site:nydailynews.com+NYC+OR+%22new+york%22+when:3d&hl=en-US&gl=US&ceid=US:en', site: 'https://www.nydailynews.com', color: '#c53030', tagline: "New York's hometown paper" },
-  { name: 'NY Post', slug: 'ny-post', tier: 2, url: 'https://nypost.com/feed/', site: 'https://www.nypost.com', color: '#1a202c', tagline: 'Tabloid with reach' },
+  { name: 'NY Post', slug: 'ny-post', tier: 2, url: 'https://nypost.com/metro/feed/', site: 'https://www.nypost.com', color: '#1a202c', tagline: 'Tabloid with reach' },
   { name: 'NY Times - NYC', slug: 'nytimes', tier: 2, url: 'https://rss.nytimes.com/services/xml/rss/nyt/NYRegion.xml', site: 'https://www.nytimes.com/section/nyregion', color: '#1a1a1a', tagline: 'Metro section' },
   { name: 'ProPublica', slug: 'propublica', tier: 2, url: 'https://www.propublica.org/feeds/propublica/main', site: 'https://www.propublica.org', color: '#1a1a1a', tagline: 'Nonprofit investigations' },
   { name: 'NY Amsterdam News', slug: 'amsterdam-news', tier: 2, url: 'https://amsterdamnews.com/feed/', site: 'https://amsterdamnews.com', color: '#b45309', tagline: "NYC's leading Black newspaper since 1909" },
   { name: 'El Diario', slug: 'el-diario', tier: 2, url: 'https://eldiariony.com/feed/', site: 'https://eldiariony.com', color: '#dc2626', tagline: 'Spanish-language NYC news' },
-  { name: 'WNYC', slug: 'wnyc', tier: 2, url: 'https://www.wnyc.org/feeds/all/', site: 'https://www.wnyc.org', color: '#1e40af', tagline: 'Public radio news' },
+  { name: 'WNYC', slug: 'wnyc', tier: 2, url: gn('site:wnyc.org when:3d'), site: 'https://www.wnyc.org', color: '#1e40af', tagline: 'Public radio news' },
   { name: 'amNewYork', slug: 'amny', tier: 2, url: 'https://www.amny.com/feed/', site: 'https://www.amny.com', color: '#0369a1', tagline: 'Metro daily' },
   // Tier 3 — Broadcast & hyperlocal
-  { name: 'NY1', slug: 'ny1', tier: 3, url: null, site: 'https://ny1.com', color: '#2d3748', tagline: 'Cable news for the city' },
+  { name: 'NY1', slug: 'ny1', tier: 3, url: gn('site:ny1.com when:3d'), site: 'https://ny1.com', color: '#2d3748', tagline: 'Cable news for the city' },
   { name: 'ABC7 NY', slug: 'abc7', tier: 3, url: 'https://abc7ny.com/feed/', site: 'https://abc7ny.com', color: '#2b6cb0', tagline: 'Local TV news' },
-  { name: 'CBS News NY', slug: 'cbsny', tier: 3, url: null, site: 'https://www.cbsnews.com/newyork/', color: '#1a365d', tagline: 'Local TV news' },
-  { name: 'Brooklyn Eagle', slug: 'brooklyn-eagle', tier: 3, url: 'https://brooklyneagle.com/feed/', site: 'https://brooklyneagle.com', color: '#4338ca', tagline: 'Brooklyn borough news' },
+  { name: 'CBS News NY', slug: 'cbsny', tier: 3, url: gn('site:cbsnews.com/newyork when:3d'), site: 'https://www.cbsnews.com/newyork/', color: '#1a365d', tagline: 'Local TV news' },
+  { name: 'Brooklyn Eagle', slug: 'brooklyn-eagle', tier: 3, url: 'https://brooklyneagle.com/feed/', fallbackUrl: gn('site:brooklyneagle.com when:3d'), site: 'https://brooklyneagle.com', color: '#4338ca', tagline: 'Brooklyn borough news' },
   // Tier 2 — State politics & Albany coverage
   { name: 'Politico NY', slug: 'politico-ny', tier: 2, url: 'https://rss.politico.com/new-york-playbook.xml', site: 'https://www.politico.com/new-york', color: '#be123c', tagline: 'Albany & City Hall insider' },
   { name: 'City & State', slug: 'city-state', tier: 2, url: 'https://www.cityandstateny.com/rss/all/', site: 'https://www.cityandstateny.com', color: '#0e7490', tagline: 'NY government & politics' },
   // Tier 2 — National with NYC filter
-  { name: 'Wall Street Journal', slug: 'wsj', tier: 2, url: 'https://feeds.a.dj.com/rss/RSSWorldNews.xml', site: 'https://www.wsj.com', color: '#0a0a0a', tagline: 'Business & policy' },
+  { name: 'Wall Street Journal', slug: 'wsj', tier: 2, url: gn('site:wsj.com "New York" when:3d'), site: 'https://www.wsj.com', color: '#0a0a0a', tagline: 'Business & policy' },
   // Tier 1 — Commentary & interviews
   { name: 'City Journal', slug: 'city-journal', tier: 1, url: 'https://news.google.com/rss/search?q=site:city-journal.org+NYC+OR+%22new+york%22+when:14d&hl=en-US&gl=US&ceid=US:en', site: 'https://www.city-journal.org', color: '#1e3a5f', tagline: 'Manhattan Institute urban policy' },
-  { name: 'NY Editorial Board', slug: 'ny-editorial-board', tier: 1, url: 'https://nyeditorialboard.substack.com/feed', site: 'https://nyeditorialboard.substack.com', color: '#b45309', tagline: 'NYC interviews & commentary' },
+  { name: 'NY Editorial Board', slug: 'ny-editorial-board', tier: 1, url: 'https://nyeditorialboard.substack.com/feed', fallbackUrl: gn('site:nyeditorialboard.substack.com'), site: 'https://nyeditorialboard.substack.com', color: '#b45309', tagline: 'NYC interviews & commentary' },
   // Tier 1 — NYC policy newsletters (Substack & others)
-  { name: 'NYC Politics 101', slug: 'nyc-politics-101', tier: 1, url: 'https://nycpolitics101.substack.com/feed', site: 'https://nycpolitics101.substack.com', color: '#6366f1', tagline: 'State & local policy education' },
-  { name: 'NYC Policy Forum', slug: 'nyc-policy-forum', tier: 1, url: 'https://nycpolicyforum.substack.com/feed', site: 'https://nycpolicyforum.substack.com', color: '#0284c7', tagline: 'Expert policy debate & commentary' },
+  { name: 'NYC Politics 101', slug: 'nyc-politics-101', tier: 1, url: 'https://nycpolitics101.substack.com/feed', fallbackUrl: gn('site:nycpolitics101.substack.com'), site: 'https://nycpolitics101.substack.com', color: '#6366f1', tagline: 'State & local policy education' },
+  { name: 'NYC Policy Forum', slug: 'nyc-policy-forum', tier: 1, url: 'https://nycpolicyforum.substack.com/feed', fallbackUrl: gn('site:nycpolicyforum.substack.com'), site: 'https://nycpolicyforum.substack.com', color: '#0284c7', tagline: 'Expert policy debate & commentary' },
   { name: 'Maximum New York', slug: 'maximum-ny', tier: 1, url: 'https://www.maximumnewyork.com/feed', site: 'https://www.maximumnewyork.com', color: '#f59e0b', tagline: 'Pro-growth NYC housing & development' },
-  { name: 'Abundance New York', slug: 'abundance-ny', tier: 1, url: 'https://abundanceny.substack.com/feed', site: 'https://abundanceny.substack.com', color: '#10b981', tagline: 'Building more in New York' },
-  { name: 'NYCuriosity', slug: 'nycuriosity', tier: 1, url: 'https://nycuriosity.substack.com/feed', site: 'https://nycuriosity.substack.com', color: '#8b5cf6', tagline: 'NYC civic engagement & community boards' },
+  { name: 'Abundance New York', slug: 'abundance-ny', tier: 1, url: 'https://abundanceny.substack.com/feed', fallbackUrl: gn('site:abundanceny.substack.com'), site: 'https://abundanceny.substack.com', color: '#10b981', tagline: 'Building more in New York' },
+  { name: 'NYCuriosity', slug: 'nycuriosity', tier: 1, url: 'https://nycuriosity.substack.com/feed', fallbackUrl: gn('site:nycuriosity.substack.com'), site: 'https://nycuriosity.substack.com', color: '#8b5cf6', tagline: 'NYC civic engagement & community boards' },
   { name: 'Sidewalk Chorus', slug: 'sidewalk-chorus', tier: 1, url: 'https://www.sidewalkchorus.com/feed', site: 'https://www.sidewalkchorus.com', color: '#ec4899', tagline: 'NYC neighborhoods & urban life' },
-  { name: 'City Journal (Substack)', slug: 'city-journal-sub', tier: 1, url: 'https://cityjournal.substack.com/feed', site: 'https://cityjournal.substack.com', color: '#1e3a5f', tagline: 'Manhattan Institute policy newsletter' },
+  { name: 'City Journal (Substack)', slug: 'city-journal-sub', tier: 1, url: 'https://cityjournal.substack.com/feed', fallbackUrl: gn('site:cityjournal.substack.com'), site: 'https://cityjournal.substack.com', color: '#1e3a5f', tagline: 'Manhattan Institute policy newsletter' },
   { name: 'The Bigger Apple', slug: 'bigger-apple', tier: 1, url: 'https://thebiggerapple.manhattan.institute/feed', site: 'https://thebiggerapple.manhattan.institute', color: '#dc2626', tagline: 'Manhattan Institute weekly NYC policy brief' },
   { name: 'Political Currents', slug: 'political-currents', tier: 1, url: 'https://rosselliotbarkan.com/feed', site: 'https://rosselliotbarkan.com', color: '#7c3aed', tagline: 'Ross Barkan on NYC politics & culture' },
-  { name: 'Metro Mosaic', slug: 'metro-mosaic', tier: 1, url: 'https://metromosaic.substack.com/feed', site: 'https://metromosaic.substack.com', color: '#0891b2', tagline: 'NYC housing & urban policy analysis' },
+  { name: 'Metro Mosaic', slug: 'metro-mosaic', tier: 1, url: 'https://metromosaic.substack.com/feed', fallbackUrl: gn('site:metromosaic.substack.com'), site: 'https://metromosaic.substack.com', color: '#0891b2', tagline: 'NYC housing & urban policy analysis' },
   { name: 'Gotham Gazette', slug: 'gotham-gazette', tier: 1, url: 'https://www.gothamgazette.com/rss', site: 'https://www.gothamgazette.com', color: '#b45309', tagline: 'Nonpartisan NYC government & policy' },
 ];
 
@@ -224,9 +237,13 @@ const MAX_ANALYSIS = 10;
 const MAX_NEWSLETTERS = 8;
 const MAX_CIVIC_REPORTS = 8;
 const MAX_SOCIAL_BUZZ = 6;
-// Extend freshness window on weekends when fewer stories publish
-const _today = new Date().getDay();
-const FRESHNESS_CUTOFF_MS = (_today === 0 || _today === 6 ? 48 : 36) * 3600 * 1000;
+// Extend freshness window on weekends when fewer stories publish.
+// Weekday in New York, not the build machine's UTC clock (which turns
+// Saturday evening into Sunday and Friday evening into Saturday).
+function freshnessCutoffMs() {
+  const day = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short' });
+  return (day === 'Sat' || day === 'Sun' ? 48 : 36) * 3600 * 1000;
+}
 const DEDUP_THRESHOLD = 0.5;
 const BUZZ_DEDUP_THRESHOLD = 0.45;
 const NEW_STORY_THRESHOLD_MS = 2 * 3600 * 1000;
@@ -335,6 +352,8 @@ const ROUNDUP_SIGNALS = [
   'calendar', 'week ahead', 'weekly roundup', 'news roundup',
   'daily roundup', 'morning links', 'evening links', 'link roundup',
   'what to watch this week', 'this week in',
+  // Documented's daily digest ("Immigration News Today: X, plus Y and Z")
+  'immigration news today',
 ];
 
 // Recurring date-stamped features ("On the Docket: ..., July 2",
@@ -525,7 +544,7 @@ const ANALYSIS_SIGNALS = [
 // Opinion signals — only match in TITLE (not snippet) to avoid
 // false positives from quoted speech in news stories
 const OPINION_SIGNALS = [
-  'opinion:', 'op-ed:', 'oped:', 'editorial:', 'commentary:',
+  'opinion:', 'opinion |', 'op-ed:', 'oped:', 'editorial:', 'commentary:',
   'guest essay', 'perspective:', 'viewpoint:',
   'letter to the editor',
   'the case for', 'the case against',
@@ -612,8 +631,18 @@ function cleanSnippet(text) {
     .replace(/\s+/g, ' ')
     .trim();
 
-  clean = clean.replace(/\s*\[?\.\.\.\]?\s*The post\s+.+$/i, '');
+  // WordPress footer: "[…] The post <title> appeared first on <outlet>."
+  clean = clean.replace(/\s*\[?(\.\.\.|…)\]?\s*The post\s+.+$/i, '');
+  clean = clean.replace(/\s*The post\s+.{5,}?\s+appeared first on\s+.+$/i, '');
   clean = clean.replace(/\s*(Continue reading|Read more|Click here).*$/i, '');
+
+  // Boilerplate that leads some snippets and crowds out the story: republishing
+  // credits ("This story was originally published on Oct. 8 by The City
+  // Reporter. Sign up here to get …") and Chalkbeat's "Did you know search
+  // engines like Google … ? Keep Chalkbeat's … next to our name." appeal.
+  clean = clean.replace(/^Did you know search engines[^?]{0,120}\?\s*[^.]{0,200}\.\s*/i, '');
+  clean = clean.replace(/^This (story|article) (was|is) (originally |first )?(co-)?(published|produced)\b.{0,100}?\.\s+(?=[A-Z“"])/, '');
+  clean = clean.replace(/^Sign up (here |for )[^.]{0,140}\.(\s*[a-z0-9-]+\.(org|com)\/\S*\.?)?\s*/i, '');
 
   // Strip photo/image captions that lead snippets
   clean = clean.replace(/^(File photo|Photo|Image|Video|Listen|Watch)(\s+(from|by|courtesy|of|via|credit|:)).*?[.!]\s*/i, '');
@@ -623,16 +652,95 @@ function cleanSnippet(text) {
   return clean.substring(0, 350);
 }
 
+// For national and regional feeds, keep only NYC-relevant stories.
+// 'nytimes' included because the NY-region feed mixes in NJ/suburban stories;
+// 'wnyc' because its Google News results are mostly national radio segments;
+// 'el-diario' because most of its feed is national, Latin American, sports and
+// entertainment news ('nueva york' covers its Spanish-language NYC stories).
+const NYC_ONLY_SLUGS = ['wnyc', 'nytimes', 'propublica', 'bolts', 'the-trace', 'the-markup', 'marshall-project', 'nymag', 'new-yorker', 'wsj', 'ny-post', 'abc7', 'pix11', 'amny', 'el-diario'];
+const NYC_SIGNALS = [
+  'new york', 'nueva york', 'nyc', 'brooklyn', 'manhattan', 'queens', 'bronx', 'staten island',
+  'city council', 'city hall', 'albany', 'mamdani', 'cuomo', 'hochul', 'adams',
+  'nypd', 'mta', 'rikers', 'nycha', 'de blasio', 'gotham',
+];
+function isNycRelevant(s) {
+  const text = `${s.title} ${s.snippet || ''} ${(s.categories || []).join(' ')}`;
+  return NYC_SIGNALS.some((sig) => hasKeyword(text, sig));
+}
+
+const isGoogleNewsUrl = (u) => /^https:\/\/news\.google\.com\//.test(u || '');
+
+// Ghost Content API posts, reshaped like rss-parser items
+async function fetchGhostItems(url) {
+  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`Ghost API status ${res.status}`);
+  const { posts } = await res.json();
+  if (!Array.isArray(posts)) throw new Error('Ghost API returned no posts');
+  return posts.map((p) => ({
+    title: p.title,
+    link: p.url,
+    contentSnippet: p.custom_excerpt || p.excerpt || '',
+    creator: (p.authors || []).map((a) => a.name).join(', ') || null,
+    // Internal tags ('#hidehome', '#issue-15') are site plumbing, not topics
+    categories: (p.tags || []).filter((t) => t.visibility === 'public').map((t) => t.name),
+    isoDate: p.published_at,
+  }));
+}
+
+// Try each source an outlet has, in order: Ghost API, its RSS feed, then a
+// Google News fallback. Returns the raw items and which source answered.
+const FALLBACK_MAX_AGE_MS = 30 * 24 * 3600 * 1000;
+async function fetchOutletItems(outlet) {
+  const sources = [];
+  if (outlet.ghostApi) sources.push({ kind: 'ghost-api', url: outlet.ghostApi });
+  if (outlet.url) sources.push({ kind: isGoogleNewsUrl(outlet.url) ? 'google-news' : 'rss', url: outlet.url });
+  if (outlet.fallbackUrl) sources.push({ kind: 'google-news-fallback', url: outlet.fallbackUrl });
+
+  const errors = [];
+  for (const src of sources) {
+    try {
+      let items;
+      if (src.kind === 'ghost-api') {
+        items = await fetchGhostItems(src.url);
+      } else {
+        const feed = await parser.parseURL(src.url);
+        items = feed.items || [];
+      }
+      if (src.kind === 'google-news-fallback') {
+        // Google News search is ordered by relevance, not date, and reaches
+        // back years. Keep only recent items, newest first.
+        const cutoff = Date.now() - FALLBACK_MAX_AGE_MS;
+        items = items
+          .filter((it) => new Date(it.pubDate || it.isoDate || 0).getTime() >= cutoff)
+          .sort((a, b) => new Date(b.pubDate || b.isoDate) - new Date(a.pubDate || a.isoDate));
+      }
+      return { items, via: src.kind, sourceErrors: errors };
+    } catch (err) {
+      errors.push(`${src.kind}: ${err.message}`);
+    }
+  }
+  throw new Error(errors.join('; '));
+}
+
 async function fetchFeed(outlet) {
-  if (!outlet.url) {
+  if (!outlet.url && !outlet.ghostApi) {
     return { outlet, items: [], error: 'No RSS feed available' };
   }
   try {
-    const feed = await parser.parseURL(outlet.url);
-    let items = (feed.items || []).slice(0, 20).map((item) => {
-      const title = cleanTitle(item.title, outlet.name) || 'Untitled';
+    const { items: rawItems, via, sourceErrors } = await fetchOutletItems(outlet);
+    const fromGoogleNews = via === 'google-news' || via === 'google-news-fallback';
+    if (sourceErrors.length) console.log(`  ${outlet.name}: using ${via} (${sourceErrors.join('; ')})`);
+    let items = rawItems
+      .filter((item) => !fromGoogleNews || /^\s*[^-–—\s]/.test(item.title || ''))
+      .slice(0, 20).map((item) => {
+      // Google News appends " - <Publisher>" to every title, and its
+      // "description" is just the title again plus the publisher name.
+      const title = (fromGoogleNews
+        ? (item.title || '').trim().replace(/\s+[-–—]\s+[^-–—]{2,60}$/, '')
+        : cleanTitle(item.title, outlet.name)) || 'Untitled';
       const link = item.link || '';
-      const snippet = cleanSnippet(item.contentSnippet || item.content || '');
+      let snippet = cleanSnippet(item.contentSnippet || item.content || '');
+      if (fromGoogleNews && snippet.toLowerCase().startsWith(title.toLowerCase().slice(0, 40))) snippet = '';
       const author = item.creator || item['dc:creator'] || item.author || null;
       const rawCats = item.categories || [];
       const cats = rawCats.map((c) => (typeof c === 'string' ? c : (c._ || c.$ || String(c))));
@@ -690,23 +798,9 @@ async function fetchFeed(outlet) {
       });
     }
 
-    // For national outlets, filter to NYC-relevant stories only
-    // 'nytimes' included because the NY-region feed mixes in NJ/suburban stories
-    const nycOnlyFilter = ['nytimes', 'propublica', 'bolts', 'the-trace', 'the-markup', 'nymag', 'new-yorker', 'wsj', 'ny-post', 'abc7', 'pix11', 'amny'];
-    let filtered = items;
-    if (nycOnlyFilter.includes(outlet.slug)) {
-      const NYC_SIGNALS = [
-        'new york', 'nyc', 'brooklyn', 'manhattan', 'queens', 'bronx', 'staten island',
-        'city council', 'city hall', 'albany', 'mamdani', 'cuomo', 'hochul', 'adams',
-        'nypd', 'mta', 'rikers', 'nycha', 'de blasio', 'gotham',
-      ];
-      filtered = items.filter((s) => {
-        const text = `${s.title} ${s.snippet || ''} ${(s.categories || []).join(' ')}`;
-        return NYC_SIGNALS.some((sig) => hasKeyword(text, sig));
-      });
-    }
+    const filtered = NYC_ONLY_SLUGS.includes(outlet.slug) ? items.filter(isNycRelevant) : items;
 
-    return { outlet, items: filtered, error: null };
+    return { outlet, items: filtered, error: null, via };
   } catch (err) {
     console.error(`Error fetching ${outlet.name}: ${err.message}`);
     return { outlet, items: [], error: err.message };
@@ -771,8 +865,8 @@ async function _doFetchAllFeeds(now) {
 
   for (const result of results) {
     if (result.status === 'fulfilled') {
-      const { outlet, items, error } = result.value;
-      feeds[outlet.slug] = { outlet, items, error };
+      const { outlet, items, error, via } = result.value;
+      feeds[outlet.slug] = { outlet, items, error, via };
       allStories.push(...items);
     }
   }
@@ -818,8 +912,14 @@ async function _doFetchAllFeeds(now) {
     }
   }
 
-  // Separate analysis/commentary from news stories for sidebar sections
-  const analysisPool = deduped.filter((s) => s.isAnalysis && s.score >= 15);
+  // Separate analysis/commentary from news stories for sidebar sections.
+  // Opinion pieces from news outlets (op-eds, columns) belong here too, as the
+  // methodology note promises; before, only commentary-only outlets made it.
+  // Sidebar items must be under a month old: newsletter and commentary feeds
+  // reach back months, and score alone kept year-old posts on the page.
+  const SIDEBAR_MAX_AGE_MS = 30 * 24 * 3600 * 1000;
+  const isRecent = (s) => s.pubDate && Date.now() - new Date(s.pubDate).getTime() < SIDEBAR_MAX_AGE_MS;
+  const analysisPool = deduped.filter((s) => (s.isAnalysis || s.isOpinion) && s.score >= 15 && isRecent(s));
 
   // News pool: everything that isn't routed to analysis sidebar
   // PLUS non-opinion analysis pieces (reported explainers can compete for Today's Picks)
@@ -829,15 +929,32 @@ async function _doFetchAllFeeds(now) {
   const newsletterPool = analysisPool.filter((s) => NEWSLETTER_SLUGS.includes(s.outletSlug));
   const pureAnalysisPool = analysisPool.filter((s) => !NEWSLETTER_SLUGS.includes(s.outletSlug));
 
-  const newsletters = newsletterPool.slice(0, MAX_NEWSLETTERS);
-  const analysis = pureAnalysisPool.slice(0, MAX_ANALYSIS);
+  // Per-outlet caps so one prolific source can't fill a section (City
+  // Journal's feed alone was taking all ten analysis slots)
+  function takeCapped(pool, max, cap) {
+    const out = [];
+    const count = {};
+    for (const s of pool) {
+      if (out.length >= max) break;
+      if ((count[s.outletSlug] || 0) >= cap) continue;
+      count[s.outletSlug] = (count[s.outletSlug] || 0) + 1;
+      out.push(s);
+    }
+    return out;
+  }
+  // (Re-sort: dedup swaps can leave the pool out of score order)
+  const byScore = (a, b) => b.score - a.score;
+  const newsletters = takeCapped([...newsletterPool].sort(byScore), MAX_NEWSLETTERS, 2);
+  const analysis = takeCapped([...pureAnalysisPool].sort(byScore), MAX_ANALYSIS, 3);
   const analysisIds = new Set([...analysis.map((s) => s.id), ...newsletters.map((s) => s.id)]);
 
   // Today's Picks: only stories from last 36 hours
   // Sort candidates by a display score that heavily rewards freshness
   // so this morning's stories beat yesterday's high-scorers
-  // Uses FRESHNESS_CUTOFF_MS from constants section
+  // 36 hours on weekdays, 48 on weekends (see freshnessCutoffMs)
   const nowMs = Date.now();
+  const FRESHNESS_CUTOFF_MS = freshnessCutoffMs();
+  const isFresh = (s) => (s.pubDate ? nowMs - new Date(s.pubDate).getTime() : Infinity) < FRESHNESS_CUTOFF_MS;
 
   const essentialCandidates = newsPool.filter(s => {
     if (analysisIds.has(s.id)) return false;
@@ -901,12 +1018,15 @@ async function _doFetchAllFeeds(now) {
     }
   }
 
-  // Second pass: if grid isn't full, promote notable/standard stories
-  // that pass substance gates and respect outlet caps
+  // Second pass: if grid isn't full, promote notable stories that pass
+  // substance gates and respect outlet caps. Same freshness window as the
+  // first pass: without it, a slow news day filled the grid with stories
+  // weeks old from low-volume feeds.
   if (essential.length < MAX_ESSENTIAL_PICKS) {
     const pickedIds = new Set(essential.map(s => s.id));
     const fillPool = newsPool
       .filter(s => !pickedIds.has(s.id) && !analysisIds.has(s.id) && !s.isOpinion && s.hasPolicySubstance)
+      .filter(isFresh)
       .filter(s => s.rank === 'notable' || s.rank === 'essential')
       .filter(passesSubstanceGate)
       .sort((a, b) => b.score - a.score);
@@ -927,7 +1047,10 @@ async function _doFetchAllFeeds(now) {
 
   for (const s of newsPool) {
     if (analysisIds.has(s.id) || essentialIds.has(s.id)) continue;
-    if (s.rank === 'notable' && notable.length < MAX_NOTABLE) {
+    // Outlet tier, byline, snippet length and recency alone add up to the
+    // notable threshold, so a fresh horoscope from a tier-2 feed scored as
+    // "notable". Require the same policy substance Today's Picks does.
+    if (s.rank === 'notable' && s.hasPolicySubstance && notable.length < MAX_NOTABLE) {
       notable.push(s);
     } else if (s.rank === 'standard' && standard.length < MAX_STANDARD) {
       standard.push(s);
@@ -1063,6 +1186,8 @@ async function _doFetchAllFeeds(now) {
       const gnFeed = await parser.parseURL(gnUrl);
       for (const item of (gnFeed.items || []).slice(0, 12)) {
         if (!item.title || !item.link) continue;
+        // Weather forecasts and celebrity items trend daily; they aren't buzz
+        if (/\b(weather|forecast)\b/i.test(item.title) || isFluff(item)) continue;
         buzzItems.push({
           title: (item.title || '').substring(0, 140),
           link: item.link,
@@ -1121,7 +1246,7 @@ async function _doFetchAllFeeds(now) {
 }
 
 // ─── Module exports (for scripts/build-data.js) ───────────────────────
-module.exports = { fetchAllFeeds, OUTLETS };
+module.exports = { fetchAllFeeds, OUTLETS, NYC_ONLY_SLUGS, isNycRelevant };
 
 // When loaded as a module (not run directly), skip the Express routes
 if (IS_MODULE) return;

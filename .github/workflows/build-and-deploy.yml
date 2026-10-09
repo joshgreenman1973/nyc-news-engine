@@ -1,34 +1,49 @@
 name: Build and deploy to GitHub Pages
 
+# Rebuilds nycnewsengine.com about every 15 minutes.
+#
+# Until October 2026 this ran on a */15 cron, which failed twice over:
+#   1. GitHub switches off cron workflows in a public repo after 60 days with
+#      no commits. The last commit was July 24, so on Sept. 22 the schedule was
+#      turned off and the site froze for 17 days with nothing marked as failed.
+#   2. From Oct. 1, GitHub's scheduler started only a few of the 96 daily runs
+#      of frequent cron workflows on this account.
+#
+# Now the workflow schedules itself: after each deploy, the `next` job waits
+# out the rest of the 15 minutes and starts a new run with workflow_dispatch,
+# which isn't throttled like cron. With no cron trigger, this workflow isn't
+# subject to the 60-day switch-off. keepalive.yml is an hourly backstop that
+# restarts the chain if it ever breaks, and each run here re-enables
+# keepalive.yml if GitHub has switched it off.
+#
+# To pause updates: disable this workflow in the Actions tab. Neither workflow
+# re-enables a workflow that was disabled by hand.
+
 on:
-  # Run on every push to main (for source-code updates + initial deploy)
+  # Source-code updates deploy right away
   push:
     branches: [main]
 
-  # Run every 15 minutes to refresh the curated feed.
-  # Note: GitHub Actions schedulers are best-effort; actual interval
-  # averages 10-20 minutes during normal load.
-  schedule:
-    - cron: "*/15 * * * *"
-
-  # Allow manual triggering from the Actions tab
+  # The chain (see `next` below), the backstop and manual runs
   workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
-  # Lets the workflow delete the duplicate artifacts a retried upload leaves behind.
+  # Lets the workflow delete the duplicate artifacts a retried upload leaves
+  # behind, start its own next run and re-enable the backstop.
   actions: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # One deploy at a time. Set on this job rather than the workflow so the
+    # `next` job's wait doesn't hold up a deploy from a push.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -36,15 +51,17 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
+          cache: npm
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
       - name: Restore archive.json from previous run
-        # GitHub Pages deploys are ephemeral, so we stash the archive in a cache
-        # keyed by date so it survives between runs within a day.
-        uses: actions/cache@v4
+        # GitHub Pages deploys are ephemeral, so the archive rides between runs
+        # in the Actions cache. GitHub evicts caches unused for 7 days; when
+        # that happens, build-data.js recovers the archive from the live site.
+        uses: actions/cache/restore@v4
         with:
           path: public/data/archive.json
           key: archive-json-${{ runner.os }}-${{ github.run_id }}
@@ -58,7 +75,7 @@ jobs:
 
       - name: Save archive.json for next run
         uses: actions/cache/save@v4
-        if: always()
+        if: always() && hashFiles('public/data/archive.json') != ''
         with:
           path: public/data/archive.json
           key: archive-json-${{ runner.os }}-${{ github.run_id }}
@@ -95,3 +112,51 @@ jobs:
       - name: Retry deploy once
         if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
+
+  # Start the next run 15 minutes after this one started. Runs even when the
+  # build fails (a feed outage shouldn't end the chain), but not when the run
+  # was cancelled.
+  next:
+    needs: build-and-deploy
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Wait out the interval, then start the next run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ME: ${{ github.run_id }}
+          INTERVAL_SECONDS: "900"
+        run: |
+          started=$(gh api "repos/$REPO/actions/runs/$ME" --jq .run_started_at)
+          wait=$(( INTERVAL_SECONDS - ($(date +%s) - $(date -d "$started" +%s)) ))
+          if [ "$wait" -gt 0 ]; then
+            echo "Next run in ${wait}s"
+            sleep "$wait"
+          fi
+
+          # Keep the backstop on. It has a cron trigger, so GitHub switches it
+          # off after 60 days without a commit; this workflow doesn't.
+          if [ "$(gh api "repos/$REPO/actions/workflows/keepalive.yml" --jq .state)" = "disabled_inactivity" ]; then
+            gh api -X PUT "repos/$REPO/actions/workflows/keepalive.yml/enable"
+            echo "Re-enabled keepalive.yml"
+          fi
+
+          # Paused by hand while this run waited
+          if [ "$(gh api "repos/$REPO/actions/workflows/build-and-deploy.yml" --jq .state)" != "active" ]; then
+            echo "build-and-deploy.yml is disabled; not starting another run."
+            exit 0
+          fi
+
+          # One chain only. A newer run (a push, a manual run, the backstop)
+          # starts the next one itself, so this run steps aside.
+          newer=$(gh api "repos/$REPO/actions/workflows/build-and-deploy.yml/runs?per_page=30" \
+            --jq "[.workflow_runs[] | select(.id > $ME and .status != \"completed\")] | length")
+          if [ "$newer" -gt 0 ]; then
+            echo "A newer run is active and will start the next one."
+            exit 0
+          fi
+
+          gh workflow run build-and-deploy.yml --repo "$REPO" --ref main
+          echo "Started the next run."

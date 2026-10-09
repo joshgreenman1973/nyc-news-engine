@@ -8,3 +8,5 @@ archive.db-wal
 # The GitHub Action regenerates these on every run and deploys to Pages.
 public/data/
 
+# Local safety copies of the deployed archive (the live site is the durable store).
+backups/

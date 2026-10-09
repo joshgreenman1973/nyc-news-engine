@@ -4,6 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NYC News Engine</title>
+  <meta name="description" content="New York City public policy journalism from more than 40 newsrooms, ranked for depth of reporting and policy relevance. Updated about every 15 minutes.">
+  <link rel="canonical" href="https://nycnewsengine.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://nycnewsengine.com/">
+  <meta property="og:title" content="NYC News Engine">
+  <meta property="og:description" content="New York City public policy journalism from more than 40 newsrooms, ranked for depth of reporting and policy relevance.">
+  <meta name="twitter:card" content="summary">
+  <meta name="theme-color" content="#111114">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23111114'/%3E%3Cpath d='M9 24V8h3l8 11V8h3v16h-3l-8-11v11z' fill='%23ff7c53'/%3E%3C/svg%3E">
   <style>
     :root {
       --bg: #111114;
@@ -284,6 +293,22 @@
       border: 1px solid var(--border);
     }
     .topic-tag:hover { color: var(--text); border-color: var(--muted); }
+    button.topic-tag { line-height: inherit; }
+    .topic-tag:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+    /* Shown when the data hasn't rebuilt in a while */
+    .stale-notice {
+      font-family: var(--sans); font-size: 0.8rem; line-height: 1.5;
+      color: var(--accent-dark); background: var(--accent-light);
+      border: 1px solid #5c3324; border-radius: 3px;
+      padding: 0.65rem 0.9rem; margin: 0 0 1.2rem;
+    }
+    .stale-notice[hidden] { display: none; }
+
+    .unreachable-note {
+      font-family: var(--sans); font-size: 0.72rem; color: var(--muted);
+      line-height: 1.6; margin-top: 2rem; max-width: 720px;
+    }
 
     /* ─── Outlet label ─── */
     .story-outlet {
@@ -512,6 +537,7 @@
       border: 1px solid var(--border); border-radius: 3px;
       font-size: 0.85rem; font-family: var(--sans);
       background: var(--card-bg); color: var(--text);
+      -webkit-appearance: none; appearance: none;
     }
     .archive-search:focus { outline: none; border-color: var(--muted); }
 
@@ -905,6 +931,7 @@
 
   <main>
     <div class="container">
+      <div class="stale-notice" id="stale-notice" role="status" hidden></div>
       <div class="loading-state" id="loading">Fetching and scoring stories from NYC newsrooms...</div>
 
       <div class="view-panel active" id="view-curated"></div>
@@ -918,7 +945,7 @@
   <footer>
     <div class="container">
       Every link goes to the original source. Support these newsrooms directly.<br>
-      Stories are scored for depth, reporting effort, and policy relevance. Auto-refreshes every 5 minutes.
+      Stories are scored for depth, reporting effort, and policy relevance. The feed rebuilds about every 15 minutes, and this page checks for new stories every 5.
       <div class="footer-note">
         <strong>How scoring works:</strong> Stories are ranked by a weighted combination of investigative signals
         (FOIA, documents obtained, data analysis), explanatory depth (deep dives, explainers, accountability follow-ups),
@@ -930,11 +957,14 @@
         Today's Picks requires at least one policy, investigative,
         or explanatory signal -- high scores from freshness and outlet tier alone are not enough.
         Opinion pieces (op-eds, editorials, columns) appear in the sidebar but never in Today's Picks.
+        "Also notable" needs the same policy substance as Today's Picks. The analysis and newsletter
+        sidebars show items from the past month, at most three per outlet (two per newsletter).
         When multiple outlets cover the same story, the deepest version is kept using title-similarity
         deduplication. Overlapping policy keywords are deduplicated to prevent inflated scores.
         <br><br>
-        <strong>Buzzing in NYC:</strong> Combines hot posts from Reddit (r/nyc and r/newyorkcity) with
-        Google News trending results for New York City. Reddit posts are filtered to news links only
+        <strong>Buzzing in NYC:</strong> Combines Google News trending results for New York City with hot
+        posts from Reddit (r/nyc and r/newyorkcity) when Reddit answers; it often refuses requests from the
+        servers that build this page. Weather forecasts are dropped. Reddit posts are filtered to news links only
         (no self-posts, images, or memes) and ranked by upvotes and comment count. Items that overlap
         with stories already in Today's Picks are removed. This section reflects public conversation,
         not editorial judgment -- it may surface stories the scoring algorithm would not prioritize.
@@ -946,6 +976,7 @@
 
   <script>
     let feedData = null;
+    let lastLoadAt = 0;
     let currentView = 'curated';
     let activeTopic = null;
 
@@ -956,15 +987,22 @@
     });
 
     // ─── Nav ───────────────────────────────────────────
+    // Each view has a shareable address: nycnewsengine.com/#archive etc.
+    const VIEWS = ['curated', 'latest', 'by-outlet', 'archive', 'media-map'];
+    function showView(view) {
+      if (!VIEWS.includes(view)) view = 'curated';
+      document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
+      currentView = view;
+      document.querySelectorAll('.view-panel').forEach((p) => p.classList.remove('active'));
+      document.getElementById(`view-${currentView}`).classList.add('active');
+      if (currentView === 'archive') loadArchive();
+      if (currentView === 'media-map') renderMediaMap();
+    }
     document.querySelectorAll('.nav-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentView = btn.dataset.view;
-        document.querySelectorAll('.view-panel').forEach((p) => p.classList.remove('active'));
-        document.getElementById(`view-${currentView}`).classList.add('active');
-        if (currentView === 'archive') loadArchive();
-        if (currentView === 'media-map') renderMediaMap();
+        showView(btn.dataset.view);
+        const hash = btn.dataset.view === 'curated' ? '' : '#' + btn.dataset.view;
+        history.replaceState(null, '', location.pathname + location.search + hash);
       });
     });
 
@@ -985,10 +1023,18 @@
     });
 
     function setTopicFilter(topic) {
+      // In the archive, a topic tag sets the archive's own topic menu
+      if (currentView === 'archive') {
+        archiveTopicFilter = topic || '';
+        archivePage = 1;
+        renderArchive();
+        window.scrollTo({ top: 0 });
+        return;
+      }
       activeTopic = activeTopic === topic ? null : topic;
       topicToggle.textContent = activeTopic ? activeTopic : 'Filter by topic';
       topicDropdown.classList.remove('open');
-      if (feedData) renderCurated(feedData);
+      if (feedData) { renderCurated(feedData); renderLatest(feedData); }
       // Update active state in dropdown
       topicDropdown.querySelectorAll('button').forEach((b) => {
         b.classList.toggle('active-topic', b.dataset.topic === activeTopic);
@@ -1014,6 +1060,7 @@
           lastUpdated: curatedWrap.lastUpdated,
         };
         feedData = data;
+        lastLoadAt = Date.now();
         document.getElementById('loading').style.display = 'none';
         renderAll(data);
         updateTimestamp(data.lastUpdated);
@@ -1034,8 +1081,23 @@
 
     function updateTimestamp(iso) {
       if (!iso) return;
-      document.getElementById('last-updated').textContent =
-        `Updated ${new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+      const d = new Date(iso);
+      const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      const day = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const sameDay = d.toDateString() === new Date().toDateString();
+      document.getElementById('last-updated').textContent = sameDay ? `Updated ${time}` : `Updated ${day}, ${time}`;
+
+      // The feed rebuilds about every 15 minutes. When it hasn't for two hours,
+      // say so, so a stalled build can't pass for today's news.
+      const notice = document.getElementById('stale-notice');
+      const hoursOld = (Date.now() - d.getTime()) / 3600000;
+      if (hoursOld > 2) {
+        const since = sameDay ? time : `${day} at ${time}`;
+        notice.textContent = `The feed hasn't updated since ${since}, so these stories may be out of date.`;
+        notice.hidden = false;
+      } else {
+        notice.hidden = true;
+      }
     }
 
     function timeAgo(d) {
@@ -1084,7 +1146,7 @@
     function topicTagsHtml(topics) {
       if (!topics || !topics.length) return '';
       return '<div class="topic-tags">' +
-        topics.map((t) => `<span class="topic-tag" onclick="setTopicFilter('${esc(t)}')">${esc(t)}</span>`).join('') +
+        topics.map((t) => `<button type="button" class="topic-tag" onclick="setTopicFilter('${esc(t)}')">${esc(t)}</button>`).join('') +
         '</div>';
     }
 
@@ -1123,7 +1185,7 @@
       let main = '';
 
       if (essentials.length > 0) {
-        main += `<div class="section-label"><span class="section-icon">&#9733;</span> Today's picks <span class="tooltip-wrap"><span class="tooltip-icon">?</span><div class="tooltip-bubble">Stories are scored on <strong>depth of reporting</strong> (investigative signals, expert sourcing, data), <strong>policy relevance</strong> (NYC governance, housing, transit, etc.), <strong>outlet independence</strong> (local nonprofits weighted over wire services), and <strong>freshness</strong> (big boost for stories under 3 hours old, tapering out at 12h). Only stories from the last 36 hours qualify. Max 3 per outlet to ensure variety.</div></span>`;
+        main += `<div class="section-label"><span class="section-icon">&#9733;</span> Today's picks <span class="tooltip-wrap"><span class="tooltip-icon">?</span><div class="tooltip-bubble">Stories are scored on <strong>depth of reporting</strong> (investigative signals, expert sourcing, data), <strong>policy relevance</strong> (NYC governance, housing, transit, etc.), <strong>outlet independence</strong> (local nonprofits weighted over wire services), and <strong>freshness</strong> (big boost for stories under 3 hours old, tapering out at 12h). Only stories from the last 36 hours (48 on weekends) qualify. Max 2 per outlet to ensure variety.</div></span>`;
         main += `<button class="sort-toggle" id="picks-sort-toggle" onclick="togglePicksSort()"><span class="toggle-icon">↕</span> Newest first</button>`;
         main += `</div>`;
         main += `<div class="picks-container" id="picks-container">`;
@@ -1417,6 +1479,12 @@
         }
         html += '</div>';
       }
+      const quiet = outlets
+        .filter((o) => { const f = feeds[o.slug]; return !f || f.error || !(f.items || []).length; })
+        .map((o) => esc(o.name));
+      if (quiet.length) {
+        html += `<p class="unreachable-note">Nothing this update from ${quiet.join(', ')}. Their feeds were down, blocked or empty, or (for national outlets) had nothing on New York City.</p>`;
+      }
       document.getElementById('view-by-outlet').innerHTML = html;
     }
 
@@ -1461,18 +1529,37 @@
     let archiveOutletFilter = '';
     let archiveQuery = '';
     let archiveCache = null;
+    let archiveLoading = null;
+    let archiveSearchTimer = null;
 
     async function loadArchive() {
       if (!archiveCache) {
-        try {
-          const res = await fetch('./data/archive.json');
-          archiveCache = await res.json();
-          if (!Array.isArray(archiveCache)) archiveCache = [];
-        } catch {
-          archiveCache = [];
+        const panel = document.getElementById('view-archive');
+        if (!archiveLoading) {
+          panel.innerHTML = '<div class="loading-state">Loading six months of stories...</div>';
+          archiveLoading = fetch('./data/archive.json')
+            .then((res) => res.json())
+            .then((rows) => (Array.isArray(rows) ? rows : []))
+            .catch(() => []);
+        }
+        const rows = await archiveLoading;
+        if (!archiveCache) {
+          // Lowercased search text, built once rather than on every keystroke
+          for (const s of rows) s._q = `${s.title || ''} ${s.snippet || ''} ${s.author || ''}`.toLowerCase();
+          archiveCache = rows;
+          panel.innerHTML = '';
         }
       }
-      renderArchive(filterArchive());
+      renderArchive();
+    }
+
+    function onArchiveSearch(value) {
+      clearTimeout(archiveSearchTimer);
+      archiveSearchTimer = setTimeout(() => {
+        archiveQuery = value.trim();
+        archivePage = 1;
+        renderArchive();
+      }, 200);
     }
 
     function filterArchive() {
@@ -1484,44 +1571,46 @@
       let filtered = archiveCache;
       if (topic) filtered = filtered.filter(s => (s.topics || []).includes(topic));
       if (outlet) filtered = filtered.filter(s => s.outletSlug === outlet);
-      if (q) filtered = filtered.filter(s =>
-        (s.title || '').toLowerCase().includes(q) ||
-        (s.snippet || '').toLowerCase().includes(q));
+      if (q) filtered = filtered.filter(s => s._q.includes(q));
 
       const total = filtered.length;
       const pages = Math.max(1, Math.ceil(total / LIMIT));
       const pageNum = Math.min(Math.max(1, archivePage), pages);
+      archivePage = pageNum;
       const start = (pageNum - 1) * LIMIT;
       const stories = filtered.slice(start, start + LIMIT);
       return { stories, total, page: pageNum, pages };
     }
 
-    function renderArchive(data) {
-      const panel = document.getElementById('view-archive');
-      let html = '';
-
-      // Controls
-      html += '<div class="archive-controls">';
-      html += `<input class="archive-search" type="text" placeholder="Search archive..." value="${esc(archiveQuery)}" onkeydown="if(event.key==='Enter'){archiveQuery=this.value;archivePage=1;loadArchive()}">`;
-      html += `<select class="archive-select" onchange="archiveTopicFilter=this.value;archivePage=1;loadArchive()">`;
+    // Controls are drawn once so typing in the search box keeps focus;
+    // only the results below them redraw.
+    function archiveControlsHtml() {
+      const topics = [...new Set(archiveCache.flatMap((s) => s.topics || []))].sort();
+      let html = '<div class="archive-controls">';
+      html += `<input class="archive-search" id="archive-search" type="search" placeholder="Search archive..." aria-label="Search the archive" value="${esc(archiveQuery)}" oninput="onArchiveSearch(this.value)">`;
+      html += `<select class="archive-select" id="archive-topic" aria-label="Filter the archive by topic" onchange="archiveTopicFilter=this.value;archivePage=1;renderArchive()">`;
       html += `<option value="">All topics</option>`;
-      if (feedData?.curated?.topicCounts) {
-        for (const t of Object.keys(feedData.curated.topicCounts).sort()) {
-          const sel = t === archiveTopicFilter ? ' selected' : '';
-          html += `<option value="${esc(t)}"${sel}>${esc(t)}</option>`;
-        }
-      }
+      for (const t of topics) html += `<option value="${esc(t)}">${esc(t)}</option>`;
       html += `</select>`;
-      html += `<select class="archive-select" onchange="archiveOutletFilter=this.value;archivePage=1;loadArchive()">`;
+      html += `<select class="archive-select" id="archive-outlet" aria-label="Filter the archive by outlet" onchange="archiveOutletFilter=this.value;archivePage=1;renderArchive()">`;
       html += `<option value="">All outlets</option>`;
-      if (feedData?.outlets) {
-        for (const o of feedData.outlets) {
-          const sel = o.slug === archiveOutletFilter ? ' selected' : '';
-          html += `<option value="${esc(o.slug)}"${sel}>${esc(o.name)}</option>`;
-        }
-      }
+      for (const o of (feedData?.outlets || [])) html += `<option value="${esc(o.slug)}">${esc(o.name)}</option>`;
       html += `</select>`;
       html += '</div>';
+      return html;
+    }
+
+    function renderArchive() {
+      if (!archiveCache) return;
+      const panel = document.getElementById('view-archive');
+      if (!document.getElementById('archive-results')) {
+        panel.innerHTML = archiveControlsHtml() + '<div id="archive-results"></div>';
+      }
+      document.getElementById('archive-topic').value = archiveTopicFilter;
+      document.getElementById('archive-outlet').value = archiveOutletFilter;
+
+      const data = filterArchive();
+      let html = '';
 
       // Stories
       html += '<ul class="archive-list">';
@@ -1536,15 +1625,16 @@
         html += `</li>`;
       }
       html += '</ul>';
+      if (!data.stories.length) html += '<div class="loading-state">No stories match.</div>';
 
       // Pagination (client-side re-filter, no network call)
       html += '<div class="archive-pagination">';
-      html += `<button ${data.page <= 1 ? 'disabled' : ''} onclick="archivePage=${data.page - 1};renderArchive(filterArchive())">Previous</button>`;
-      html += `<span class="page-info">Page ${data.page} of ${data.pages} (${data.total} stories)</span>`;
-      html += `<button ${data.page >= data.pages ? 'disabled' : ''} onclick="archivePage=${data.page + 1};renderArchive(filterArchive())">Next</button>`;
+      html += `<button ${data.page <= 1 ? 'disabled' : ''} onclick="archivePage=${data.page - 1};renderArchive();document.getElementById('view-archive').scrollIntoView()">Previous</button>`;
+      html += `<span class="page-info">Page ${data.page} of ${data.pages} (${data.total.toLocaleString('en-US')} stories)</span>`;
+      html += `<button ${data.page >= data.pages ? 'disabled' : ''} onclick="archivePage=${data.page + 1};renderArchive();document.getElementById('view-archive').scrollIntoView()">Next</button>`;
       html += '</div>';
 
-      panel.innerHTML = html;
+      document.getElementById('archive-results').innerHTML = html;
     }
 
     // ─── Media Map ─────────────────────────────────────
@@ -1732,8 +1822,15 @@
     }
 
     // ─── Boot ──────────────────────────────────────────
-    loadFeeds();
+    loadFeeds().then(() => {
+      const view = location.hash.slice(1);
+      if (view && VIEWS.includes(view)) showView(view);
+    });
     setInterval(loadFeeds, 5 * 60 * 1000);
+    // Coming back to a tab left open for hours: refresh right away
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastLoadAt > 5 * 60 * 1000) loadFeeds();
+    });
   </script>
 
   <!-- Cloudflare Web Analytics -->

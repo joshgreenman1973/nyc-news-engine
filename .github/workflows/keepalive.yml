@@ -1,0 +1,59 @@
+name: Keep the feed running
+
+# Hourly backstop for build-and-deploy.yml, which starts its own next run every
+# 15 minutes. If that chain ever breaks (a cancelled run, a GitHub outage), this
+# restarts it. It also fails, which makes GitHub send an email, when the live
+# site's data is more than three hours old, so a frozen site doesn't go unseen
+# the way it did from Sept. 22 to Oct. 9, 2026.
+#
+# GitHub switches off cron workflows like this one after 60 days without a
+# commit; build-and-deploy.yml switches it back on.
+
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Restart the build chain if it stopped
+        id: chain
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          state=$(gh api "repos/$REPO/actions/workflows/build-and-deploy.yml" --jq .state)
+          if [ "$state" = "disabled_manually" ]; then
+            echo "Updates are paused by hand; leaving them paused."
+            echo "paused=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$state" != "active" ]; then
+            gh api -X PUT "repos/$REPO/actions/workflows/build-and-deploy.yml/enable"
+            echo "Re-enabled build-and-deploy.yml (was $state)"
+          fi
+          active=$(gh api "repos/$REPO/actions/workflows/build-and-deploy.yml/runs?per_page=30" \
+            --jq '[.workflow_runs[] | select(.status != "completed")] | length')
+          if [ "$active" -eq 0 ]; then
+            gh workflow run build-and-deploy.yml --repo "$REPO" --ref main
+            echo "No build was running or queued; started one."
+          else
+            echo "Build chain is running ($active active run(s))."
+          fi
+
+      - name: Check the live site is current
+        if: steps.chain.outputs.paused != 'true'
+        run: |
+          updated=$(curl -fsS "https://nycnewsengine.com/data/meta.json?cb=$(date +%s)" | jq -r .lastUpdated)
+          age=$(( $(date +%s) - $(date -d "$updated" +%s) ))
+          echo "Live data is $(( age / 60 )) minutes old (lastUpdated $updated)."
+          if [ "$age" -gt 10800 ]; then
+            echo "::error::nycnewsengine.com has not updated in over three hours (last $updated)."
+            exit 1
+          fi
