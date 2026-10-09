@@ -835,6 +835,22 @@ function archiveStories(stories) {
 }
 
 // ─── Cache & fetch ────────────────────────────────────────────────────
+const FETCH_CONCURRENCY = 8;
+
+// Promise.allSettled over items, running at most `limit` at once
+async function mapWithLimit(items, limit, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      try { results[i] = { status: 'fulfilled', value: await fn(items[i]) }; }
+      catch (reason) { results[i] = { status: 'rejected', reason }; }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
 let feedCache = {};
 let curatedCache = null;
 let lastFetchTime = null;
@@ -859,7 +875,20 @@ async function _doFetchAllFeeds(now) {
   // Purge old archive entries (no-op in static-build mode)
   if (purgeStmt) purgeStmt.run();
 
-  const results = await Promise.allSettled(OUTLETS.map(fetchFeed));
+  // Eight feeds at a time, then one retry for any that timed out. With all 43
+  // requests fired at once, GitHub's runners (Oct. 9, 2026) let the first nine
+  // or so through and timed out every request after them, failing the build;
+  // feeds that timed out answered fine seconds later.
+  const results = await mapWithLimit(OUTLETS, FETCH_CONCURRENCY, fetchFeed);
+  const transient = /timed out|ETIMEDOUT|ECONNRESET|EAI_AGAIN|ENOTFOUND|socket hang up/i;
+  const retryIdx = results
+    .map((r, i) => (r.status === 'fulfilled' && r.value.error && transient.test(r.value.error) ? i : -1))
+    .filter((i) => i >= 0);
+  if (retryIdx.length) {
+    console.log(`  Retrying ${retryIdx.length} feed(s) that timed out or dropped`);
+    const retried = await mapWithLimit(retryIdx.map((i) => OUTLETS[i]), 4, fetchFeed);
+    retryIdx.forEach((i, k) => { results[i] = retried[k]; });
+  }
 
   const feeds = {};
   const allStories = [];

@@ -71,6 +71,9 @@ jobs:
       - name: Build data (fetch feeds, score, write JSON)
         env:
           NO_DB: "1"
+          # Node resolves hostnames on a 4-thread pool by default; a few slow
+          # DNS lookups on the runner can stall every feed queued behind them.
+          UV_THREADPOOL_SIZE: "32"
         run: node scripts/build-data.js
 
       - name: Save archive.json for next run
