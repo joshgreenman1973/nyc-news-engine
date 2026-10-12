@@ -132,6 +132,17 @@ jobs:
           ME: ${{ github.run_id }}
           INTERVAL_SECONDS: "900"
         run: |
+          # GitHub's API throws the odd 502. One of those ended the chain on
+          # 2026-10-12, so every call here retries before giving up; a call
+          # that still fails after five tries fails the run as before.
+          gh() {
+            for attempt in 1 2 3 4 5; do
+              if command gh "$@"; then return 0; fi
+              [ "$attempt" -lt 5 ] && { echo "gh $1 failed (attempt $attempt/5); retrying" >&2; sleep $(( attempt * 15 )); }
+            done
+            return 1
+          }
+
           started=$(gh api "repos/$REPO/actions/runs/$ME" --jq .run_started_at)
           wait=$(( INTERVAL_SECONDS - ($(date +%s) - $(date -d "$started" +%s)) ))
           if [ "$wait" -gt 0 ]; then
